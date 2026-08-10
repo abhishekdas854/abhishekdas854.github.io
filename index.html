@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abhishek Das — Backend & Distributed Systems Engineer</title>
+<meta name="description" content="Abhishek Das — Software Engineer II building event-driven backends, compliance platforms and IoT data infrastructure at scale.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23f7f4ed%22/><text x=%2250%25%22 y=%2258%25%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22%23a8332a%22 font-family=%22Georgia,serif%22>A</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-row">
+    <div class="nav-name">Abhishek Das</div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#systems">Systems</a></li>
+      <li><a href="#scale">Scale</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#stack">Stack</a></li>
+      <li><a href="#experience">Experience</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">MENU</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-top">
+        <span class="eyebrow">BACKEND &amp; DISTRIBUTED SYSTEMS ENGINEER · BANGALORE, INDIA</span>
+        <span class="meta-right">6 YEARS · JAVA · GOLANG · KAFKA</span>
+      </div>
+      <div class="hero-grid">
+        <div>
+          <h1 class="hero-name">Abhishek Das</h1>
+          <p class="hero-sub">Event-driven backends, compliance-grade platforms, and real-time data infrastructure — built end to end from system design to production.</p>
+          <div class="hero-cta">
+            <a class="btn primary" href="#systems">Read the work</a>
+            <a class="btn" href="#contact">Get in touch</a>
+            <a class="btn" href="https://www.linkedin.com/in/abhishek-das-10a36916a/" target="_blank" rel="noopener">LinkedIn</a>
+            <a class="btn" href="https://github.com/abhishekdas854" target="_blank" rel="noopener">GitHub</a>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <p>Software Engineer II with <strong>6 years</strong> building scalable, fault-tolerant distributed systems and event-driven microservices — primary depth in <strong>Java, Golang and Kafka</strong>, with production experience across <strong>PostgreSQL, Redis and AWS</strong>. Shipped backend systems end to end across real-time IoT telemetry, enterprise leave-compliance platforms, and high-throughput data pipelines.</p>
+          <div class="hero-timeline">
+            <div class="tl-row"><span class="yr">2024–</span><div><b>Software Engineer II</b> <span class="loc">— Paylocity, Bangalore</span></div></div>
+            <div class="tl-row"><span class="yr">2021–24</span><div><b>Software Engineer, Backend</b> <span class="loc">— Zoomcar, Bangalore</span></div></div>
+            <div class="tl-row"><span class="yr">2020–21</span><div><b>Software Engineer</b> <span class="loc">— Nference Labs, Bangalore</span></div></div>
+            <div class="tl-row"><span class="yr">2016–20</span><div><b>B.Tech, Materials Science</b> <span class="loc">— IIT Kanpur (Minor: CS)</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 SYSTEMS -->
+  <section class="block" id="systems">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-num">01</div>
+        <div>
+          <div class="sec-label">Systems</div>
+          <h2 class="sec-title">The platforms I've built</h2>
+        </div>
+      </div>
+      <p class="sec-intro reveal">Four systems, four different constraints — regulatory correctness at enterprise scale, sub-second telemetry off thousands of physical devices, real-time comms that change behaviour, and a job engine under clinical data load. Each shipped end to end: design, build, and production ownership.</p>
+
+      <div class="card-grid" style="margin-top:34px;">
+        <div class="card reveal">
+          <div class="tag-row"><span class="tag">TypeScript · Next.js</span><span class="tag">Config-driven</span></div>
+          <h3>Leave &amp; Compliance Engine</h3>
+          <div class="co">Paylocity (formerly Aidora) · Eligibility &amp; Tracking Team · 2024–Present</div>
+          <p class="desc">A versioned backend service managing leave datasets across all 50 US states for 60+ enterprise clients. A config-driven policy versioning framework auto-selects the correct policy per employee from just a benefit config and an effective date — zero code changes to onboard a new regulatory year.</p>
+          <div class="stat-row">
+            <div class="stat"><b>60+</b><span>Enterprise clients</span></div>
+            <div class="stat"><b>51</b><span>State policies encoded</span></div>
+            <div class="stat"><b>-30%</b><span>Onboarding churn risk</span></div>
+          </div>
+        </div>
+
+        <div class="card reveal">
+          <div class="tag-row"><span class="tag">Golang · AWS</span><span class="tag">Kafka Streams</span></div>
+          <h3>Real-Time Fleet Telemetry</h3>
+          <div class="co">Zoomcar · IoT Team · 2021–2024</div>
+          <p class="desc">A high-throughput IoT gateway capturing live telemetry from 12,000+ vehicles across the Egyptian fleet, plus a Kafka Streams pipeline enriching raw device messages into a PostgreSQL system of record, and a Redis-backed alerting layer for theft and anomaly detection.</p>
+          <div class="stat-row">
+            <div class="stat"><b>12K+</b><span>Devices online</span></div>
+            <div class="stat"><b>7→20</b><span>Msgs/sec scaled</span></div>
+            <div class="stat"><b>&lt;3%</b><span>False-positive rate</span></div>
+          </div>
+        </div>
+
+        <div class="card reveal">
+          <div class="tag-row"><span class="tag">Java · Redis</span><span class="tag">Real-time</span></div>
+          <h3>Host-Guest Communications</h3>
+          <div class="co">Zoomcar · Platform Team · 2021–2024</div>
+          <p class="desc">A two-way chat system plus text-to-speech voice alerts and a multi-channel escalation engine — email, push, then robocall — that steps up automatically when a prior channel goes unacknowledged, cutting friction at the exact moment vehicle handoffs break down.</p>
+          <div class="stat-row">
+            <div class="stat"><b>-37%</b><span>Booking cancellations</span></div>
+            <div class="stat"><b>-32%</b><span>Host-guest friction</span></div>
+            <div class="stat"><b>-20%</b><span>Low-connectivity cancels</span></div>
+          </div>
+        </div>
+
+        <div class="card reveal">
+          <div class="tag-row"><span class="tag">Golang · RocksDB</span><span class="tag">Flask · Protobuf</span></div>
+          <h3>Clinical Data Job Engine</h3>
+          <div class="co">Nference Labs · InfoX Team · 2020–2021</div>
+          <p class="desc">An async job engine in Golang using MapReduce principles to process heavy clinical datasets, backed by a migration of the core wait-queue from Kafka to RocksDB to remove a throughput bottleneck — plus the React.js frontend that let non-technical users configure clinical text-extraction rules.</p>
+          <div class="stat-row">
+            <div class="stat"><b>MapReduce</b><span>Async job engine</span></div>
+            <div class="stat"><b>Kafka→RocksDB</b><span>Wait-queue migration</span></div>
+            <div class="stat"><b>A100/V100/T4</b><span>GPU benchmarking</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 SCALE -->
+  <section class="block" id="scale">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-num">02</div>
+        <div>
+          <div class="sec-label">Scale</div>
+          <h2 class="sec-title">Impact by the numbers</h2>
+        </div>
+      </div>
+      <p class="sec-intro reveal">Every figure below ties back to a shipped system above — no vanity metrics, just the throughput, coverage and reduction numbers each project was actually measured on.</p>
+
+      <div class="stat-grid reveal">
+        <div class="stat-tile"><b>60+</b><span>Enterprise clients on the leave-compliance platform</span></div>
+        <div class="stat-tile"><b>51</b><span>State-specific leave policies encoded, 19 states + DC</span></div>
+        <div class="stat-tile"><b>20K+</b><span>Devices kept in sync at 3× fleet growth, zero re-architecture</span></div>
+        <div class="stat-tile"><b>12K+</b><span>Vehicles streaming live telemetry, Egyptian regional fleet</span></div>
+        <div class="stat-tile"><b>7→20</b><span>Messages/sec scaled as new IoT device types onboarded</span></div>
+        <div class="stat-tile"><b>&lt;3%</b><span>False-positive rate on sub-second theft/anomaly alerting</span></div>
+        <div class="stat-tile"><b>-57%</b><span>Failed unlock attempts after the BLE offline-unlock integration</span></div>
+        <div class="stat-tile"><b>-37%</b><span>Booking cancellations after the two-way chat system shipped</span></div>
+      </div>
+
+      <div style="margin-top:56px;">
+        <h4 style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:6px;">Career composition by tenure</h4>
+        <p style="font-size:13.5px;color:var(--ink-soft);margin:0 0 16px;max-width:640px;">Roughly six years since IIT Kanpur, split across three engineering teams — each a step up in system scope, from a clinical job engine to fleet-wide IoT infrastructure to a 60-client compliance platform.</p>
+        <div class="comp-chart reveal">
+          <div class="comp-bar">
+            <div class="comp-seg" style="width:18%;background:var(--tan);">18%</div>
+            <div class="comp-seg" style="width:46%;background:var(--navy);">46%</div>
+            <div class="comp-seg" style="width:36%;background:var(--rust);">36%</div>
+          </div>
+          <div class="comp-legend">
+            <span><i class="dot" style="background:var(--tan);"></i>Nference Labs, 2020–21</span>
+            <span><i class="dot" style="background:var(--navy);"></i>Zoomcar, 2021–24</span>
+            <span><i class="dot" style="background:var(--rust);"></i>Paylocity, 2024–present</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 PIPELINE -->
+  <section class="block" id="pipeline">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-num">03</div>
+        <div>
+          <div class="sec-label">Pipeline</div>
+          <h2 class="sec-title">From event to action</h2>
+        </div>
+      </div>
+      <p class="sec-intro reveal">The flagship architecture: raw telemetry off a physical fleet, through an ingest gateway and a streaming enrichment layer, into a system of record — and back out as a sub-second alert. A signal is only useful once it changes something downstream.</p>
+
+      <div class="pipeline-flow reveal">
+        <div class="flow-step"><div class="fn">Device</div><h4>IoT hardware &amp; BLE</h4><p>12,000+ vehicles, in-car sensors and lock hardware</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><div class="fn">Ingest</div><h4>Golang + AWS gateway</h4><p>High-throughput capture, lead-contributor build</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><div class="fn">Enrich</div><h4>Kafka Streams</h4><p>Raw messages → structured, enriched events</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><div class="fn">Store</div><h4>PostgreSQL + Redis</h4><p>System of record, state stores for hot paths</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><div class="fn">Act</div><h4>Sub-second alerting</h4><p>Theft &amp; anomaly detection, &lt;3% false positives</p></div>
+      </div>
+
+      <h4 style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-mute);margin:48px 0 4px;">Behaviour change, measured before vs. after</h4>
+      <p style="font-size:13.5px;color:var(--ink-soft);margin:0 0 4px;max-width:680px;">Four distinct mechanisms, each tested and shipped independently — a comms escalation ladder, a voice-alert channel, a real-time chat surface, and an offline BLE unlock path.</p>
+
+      <div class="compare-rows reveal">
+        <div class="compare-row">
+          <span class="label">Two-way chat system</span>
+          <div class="compare-track"><div class="before" style="width:100%;"></div><div class="after" style="width:63%;"></div></div>
+          <span class="delta">-37%</span>
+        </div>
+        <div class="compare-row">
+          <span class="label">Multi-channel escalation</span>
+          <div class="compare-track"><div class="before" style="width:100%;"></div><div class="after" style="width:68%;"></div></div>
+          <span class="delta">-32%</span>
+        </div>
+        <div class="compare-row">
+          <span class="label">Voice alert (TTS)</span>
+          <div class="compare-track"><div class="before" style="width:100%;"></div><div class="after" style="width:80%;"></div></div>
+          <span class="delta">-20%</span>
+        </div>
+        <div class="compare-row">
+          <span class="label">BLE offline unlock</span>
+          <div class="compare-track"><div class="before" style="width:100%;"></div><div class="after" style="width:43%;"></div></div>
+          <span class="delta">-57%</span>
+        </div>
+      </div>
+      <div class="compare-key">
+        <span><i class="dot" style="background:var(--line-strong);"></i>Before</span>
+        <span><i class="dot" style="background:var(--rust);"></i>After</span>
+      </div>
+      <p style="font-size:13px;color:var(--ink-mute);margin-top:18px;max-width:680px;">Bars are normalized to a 100-unit baseline per mechanism so four differently-scaled metrics — cancellations, friction incidents, and failed unlocks — can sit on one axis; the percentages are exact, the baselines are illustrative.</p>
+    </div>
+  </section>
+
+  <!-- 04 STACK -->
+  <section class="block" id="stack">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-num">04</div>
+        <div>
+          <div class="sec-label">Foundation</div>
+          <h2 class="sec-title">Stack &amp; engineering discipline</h2>
+        </div>
+      </div>
+      <p class="sec-intro reveal">The toolchain every system above is built from, and the handful of habits that repeat across all of them — config over code, versioned by default, and correctness that survives a compliance audit.</p>
+
+      <div class="stack-grid" style="margin-top:32px;">
+        <div class="stack-cat reveal">
+          <h4>Languages</h4>
+          <div class="chips"><span class="chip">Java</span><span class="chip">Golang</span><span class="chip">Python</span><span class="chip">C++</span><span class="chip">SQL</span><span class="chip">TypeScript</span></div>
+        </div>
+        <div class="stack-cat reveal">
+          <h4>Backend &amp; API</h4>
+          <div class="chips"><span class="chip">REST</span><span class="chip">gRPC</span><span class="chip">Microservices</span><span class="chip">Event-Driven Arch.</span><span class="chip">Kafka Streams</span><span class="chip">Spring Boot</span></div>
+        </div>
+        <div class="stack-cat reveal">
+          <h4>Frameworks</h4>
+          <div class="chips"><span class="chip">Next.js</span><span class="chip">React.js</span><span class="chip">React Native</span><span class="chip">Flask</span></div>
+        </div>
+        <div class="stack-cat reveal">
+          <h4>Messaging &amp; Infra</h4>
+          <div class="chips"><span class="chip">Apache Kafka</span><span class="chip">Docker</span><span class="chip">Kubernetes</span><span class="chip">Linux</span></div>
+        </div>
+        <div class="stack-cat reveal">
+          <h4>Databases &amp; Caching</h4>
+          <div class="chips"><span class="chip">PostgreSQL</span><span class="chip">MongoDB</span><span class="chip">RocksDB</span><span class="chip">Redis</span></div>
+        </div>
+        <div class="stack-cat reveal">
+          <h4>Cloud &amp; Observability</h4>
+          <div class="chips"><span class="chip">AWS</span><span class="chip">Git</span><span class="chip">CI/CD</span></div>
+        </div>
+      </div>
+
+      <div class="principle-grid">
+        <div class="principle reveal">
+          <div class="pn">01</div>
+          <h4>Config over code</h4>
+          <p>The leave-compliance engine adds a new policy year from a benefit config and an effective date alone — zero code changes, and 30% less onboarding churn risk.</p>
+        </div>
+        <div class="principle reveal">
+          <div class="pn">02</div>
+          <h4>Versioned by default</h4>
+          <p>Policy versions are selected per employee off their leave start or due date, so regulatory changes stack instead of overwrite.</p>
+        </div>
+        <div class="principle reveal">
+          <div class="pn">03</div>
+          <h4>Scale without re-architecture</h4>
+          <p>The device sync pipeline absorbed 3× fleet growth on the same design — the win was the architecture not needing to change.</p>
+        </div>
+        <div class="principle reveal">
+          <div class="pn">04</div>
+          <h4>Signals only count if they act</h4>
+          <p>Theft and anomaly detection runs at sub-second latency with under 3% false positives — fast enough, and trusted enough, to page someone.</p>
+        </div>
+      </div>
+
+      <div class="side-note reveal">
+        <div class="sn-label">Parallel build</div>
+        <h4>Ethereum-Based Student Senate Election Platform</h4>
+        <p>A Solidity smart contract deployed on the Ethereum Ropsten Network for a tamper-proof student election system, restricting voting access to verified IITK email holders through on-chain identity validation. Jan–Apr 2019.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 EXPERIENCE -->
+  <section class="block" id="experience">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-num">05</div>
+        <div>
+          <div class="sec-label">Background</div>
+          <h2 class="sec-title">Experience</h2>
+        </div>
+      </div>
+
+      <div class="exp-item reveal">
+        <div class="exp-when"><span class="range">2024 — Present</span>Bangalore, India</div>
+        <div class="exp-role">
+          <h3>PAYLOCITY <span style="font-family:var(--sans);font-size:14px;color:var(--tan);font-style:italic;">(formerly Aidora)</span></h3>
+          <div class="co-line">Software Engineer II, Backend</div>
+          <div class="team-line">Eligibility and Tracking Team</div>
+          <ul>
+            <li>Continued in-role through <strong>Paylocity's acquisition of Aidora</strong>, carrying the leave-compliance platform and its client base onto the Paylocity backend.</li>
+            <li>Built an <strong>end-to-end versioned backend service</strong> in TypeScript and Next.js managing leave datasets across all <strong>50 US states</strong> for <strong>60+ enterprise clients</strong>.</li>
+            <li>Engineered a <strong>config-driven policy versioning framework</strong> auto-selecting the correct policy per employee with zero code changes, cutting onboarding churn risk by <strong>30%</strong>.</li>
+            <li>Architected a <strong>dynamic policy evaluation engine</strong> encoding <strong>51 state-specific leave policies</strong> across 19 states and DC on top of federal baselines like FMLA.</li>
+            <li>Delivered backend support for <strong>Minnesota</strong> and <strong>Delaware Paid Leave</strong> mandates, including asymmetric leave windows and shared annual caps — <strong>won a Minnesota-based enterprise client</strong> on the strength of the build.</li>
+            <li>Designed <strong>intermittent leave logic</strong> and a <strong>reduced-schedule tracking module</strong> for partial-day increments across all supported jurisdictions.</li>
+          </ul>
+          <div class="exp-pills"><span class="pill">TypeScript</span><span class="pill">Next.js</span><span class="pill">Compliance</span></div>
+        </div>
+      </div>
+
+      <div class="exp-item reveal">
+        <div class="exp-when"><span class="range">2021 — 2024</span>Bangalore, India</div>
+        <div class="exp-role">
+          <h3>ZOOMCAR</h3>
+          <div class="co-line">Software Engineer, Backend — Platform &amp; IoT Teams</div>
+          <div class="team-line">Real-time Communications, and Vehicle Telemetry Infrastructure</div>
+          <ul>
+            <li>Built a <strong>real-time two-way chat system</strong> in Java and Redis, driving a <strong>37% reduction</strong> in booking cancellations.</li>
+            <li>Integrated a <strong>text-to-speech voice alert system</strong> with AWS webhook tracking, cutting cancellations <strong>20%</strong> in low-connectivity regions.</li>
+            <li>Designed a <strong>multi-channel escalation system</strong> (email → push → robocall) reducing last-minute cancellations <strong>15%</strong> and host-guest friction <strong>32%</strong>.</li>
+            <li>Architected a <strong>Golang + AWS IoT gateway</strong> as lead contributor, capturing telemetry from <strong>12,000+ devices</strong> across the Egyptian fleet.</li>
+            <li>Engineered a <strong>BLE integration</strong> for offline vehicle lock/unlock, reducing failed unlock attempts <strong>57%</strong>.</li>
+            <li>Built an <strong>event-driven Kafka Streams microservice</strong> scaling throughput from <strong>7 to 20 messages/sec</strong>, plus a Kafka + Redis alerting pipeline under a <strong>3% false-positive rate</strong>.</li>
+            <li>Designed a <strong>Kafka + PostgreSQL sync pipeline</strong> replicating config across <strong>20,000+ devices</strong>, supporting <strong>3× fleet growth</strong> with no architectural changes.</li>
+          </ul>
+          <div class="exp-pills"><span class="pill">Java</span><span class="pill">Golang</span><span class="pill">Kafka</span><span class="pill">Redis</span><span class="pill">PostgreSQL</span></div>
+        </div>
+      </div>
+
+      <div class="exp-item reveal">
+        <div class="exp-when"><span class="range">2020 — 2021</span>Bangalore, India</div>
+        <div class="exp-role">
+          <h3>NFERENCE LABS</h3>
+          <div class="co-line">Software Engineer</div>
+          <div class="team-line">InfoX Team</div>
+          <ul>
+            <li>Built a <strong>scalable async job engine</strong> in Golang using MapReduce principles across large clinical datasets.</li>
+            <li>Led the <strong>migration of the core wait-queue from Kafka to RocksDB</strong>, eliminating a throughput bottleneck.</li>
+            <li>Implemented <strong>Python Flask microservice APIs</strong> using Protobuf for type-safe inter-service communication.</li>
+            <li>Designed <strong>automated benchmarking frameworks</strong> across A100, V100 and T4 GPU clusters.</li>
+            <li>Developed the full <strong>React.js frontend</strong> for a medical information extraction platform.</li>
+          </ul>
+          <div class="exp-pills"><span class="pill">Golang</span><span class="pill">Flask</span><span class="pill">Protobuf</span><span class="pill">React.js</span></div>
+        </div>
+      </div>
+
+      <div class="exp-item reveal">
+        <div class="exp-when"><span class="range">May — Jul 2019</span>Bangalore, India</div>
+        <div class="exp-role">
+          <h3>BOSCH GLOBAL</h3>
+          <div class="co-line">Software Engineering Intern</div>
+          <div class="team-line">Cross-Platform Mobile Development</div>
+          <ul>
+            <li>Built a <strong>cross-platform mobile application</strong> end-to-end in React Native and Firebase, with real-time location tracking and multi-provider auth (Email, Facebook, GitHub, Gmail).</li>
+            <li>Developed network diagnostics and real-time data display features, shipped production-ready within the internship.</li>
+          </ul>
+          <div class="exp-pills"><span class="pill">React Native</span><span class="pill">Firebase</span></div>
+        </div>
+      </div>
+
+      <div class="edu-cert-grid">
+        <div class="edu-block reveal">
+          <h4>Education</h4>
+          <b>Indian Institute of Technology (IIT), Kanpur</b>
+          <div class="deg">B.Tech, Materials Science &amp; Engineering · Minor: Computer Systems</div>
+          <div class="deg" style="margin-top:2px;color:var(--ink-mute);">Aug 2016 — May 2020</div>
+          <div class="lang-row"><strong>Languages —</strong> English: Full Professional Proficiency · Bengali: Native</div>
+        </div>
+        <div class="reveal">
+          <h4>Achievements</h4>
+          <ul class="ach-list">
+            <li><strong>Exceeds Expectations</strong> — 3 consecutive half-yearly performance cycles at Zoomcar, across the Platform and IoT teams over a 2.5-year tenure.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer" id="contact">
+  <div class="wrap">
+    <hr class="rule" style="margin-bottom:36px;">
+    <div class="foot-row">
+      <div class="foot-left">
+        <div class="fn-serif">Let's talk systems.</div>
+        <p>Open to backend and distributed-systems roles — especially anything involving event-driven architecture, compliance-grade platforms, or real-time data at scale. Open to relocation.</p>
+      </div>
+      <div class="foot-links">
+        <a class="btn primary" href="mailto:das.abhi11@gmail.com">das.abhi11@gmail.com</a>
+        <a class="btn" href="https://www.linkedin.com/in/abhishek-das-10a36916a/" target="_blank" rel="noopener">LinkedIn</a>
+        <a class="btn" href="https://github.com/abhishekdas854" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn" href="resume.pdf" target="_blank" rel="noopener">Resume (PDF)</a>
+      </div>
+    </div>
+    <div class="foot-copy">© 2026 Abhishek Das · Bangalore, India</div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
