@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concurrency Practice Problems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+.sitenav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sitenav a { font-family: var(--f-mono); font-size: 12.5px; text-decoration: none; color: var(--muted); padding: 5px 10px; border-radius: 6px; border: 1px solid transparent; }
+.sitenav a[aria-current="page"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.sitenav a:hover, .sitenav a:focus-visible { color: var(--accent); outline: none; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.filters button { font: inherit; font-family: var(--f-mono); font-size: 12px; background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.filters button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.group { display: flex; flex-direction: column; gap: 18px; }
+.prob { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.prob.done { border-color: color-mix(in srgb, var(--go) 50%, var(--line)); }
+.phead { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: baseline; }
+.phead .pnum { font-family: var(--f-mono); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.phead h3 { font-size: 1.1rem; }
+.pmeta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.pill { font-family: var(--f-mono); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.pill.e { color: var(--accent); background: var(--accent-soft); }
+.pill.m { color: var(--go); background: var(--go-soft); }
+.pill.h { color: var(--warn); background: var(--warn-soft); }
+.pill.t { color: var(--muted); border: 1px solid var(--line); }
+@media (max-width: 560px) { .phead { grid-template-columns: auto 1fr; } .pmeta { grid-column: 1 / -1; justify-content: flex-start; } }
+.prob ul { font-size: 15px; }
+.prob .checks { font-size: 14px; color: var(--muted); }
+.prob .checks b { color: var(--fg); }
+.hints { display: flex; flex-direction: column; gap: 6px; }
+.hints details > summary { cursor: pointer; font-size: 13.5px; color: var(--accent); width: fit-content; }
+.hints details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hints details p { font-size: 14.5px; margin-top: 4px; }
+.solved { display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--muted); cursor: pointer; width: fit-content; }
+.solved input { width: 16px; height: 16px; accent-color: var(--go); cursor: pointer; }
+.mock { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.mock > div { min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; }
+.mock h3 { font-size: 1rem; }
+@media (max-width: 760px) { .mock { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <nav class="sitenav" aria-label="Course pages">
+    <a href="./">Course</a><a href="reading.html">Reading questions</a><a href="practice.html" aria-current="page">Practice problems</a>
+  </nav>
+  <span class="eyebrow">Build it, test it, get it reviewed</span>
+  <h1>Practice Problems</h1>
+  <p class="lede">30 problems in three groups: classic synchronisation puzzles, building the primitives yourself, and system-style components. Solve each in Java first, then in Go if you have time. Hints are layered: open the second one only if the first wasn't enough.</p>
+  <div class="progress">
+    <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+    <span class="count" id="count">0 / 0 solved</span>
+  </div>
+  <div class="filters" role="group" aria-label="Filter by difficulty">
+    <button type="button" data-f="all" aria-pressed="true">All</button>
+    <button type="button" data-f="e" aria-pressed="false">Easy</button>
+    <button type="button" data-f="m" aria-pressed="false">Medium</button>
+    <button type="button" data-f="h" aria-pressed="false">Hard</button>
+    <button type="button" data-f="todo" aria-pressed="false">Not solved</button>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#how">How to practise</a><a href="#g1">Classic puzzles</a><a href="#g2">Build the primitive</a><a href="#g3">System components</a><a href="#mock">Mock rounds</a>
+  </nav>
+</header>
+
+<section id="how" class="stack">
+  <h2>How to practise</h2>
+  <ul>
+    <li><b>Time-box it.</b> 25 minutes for easy, 40 for medium, 60 for hard, including tests. Speak your design out loud before you write code.</li>
+    <li><b>Write the stress test first.</b> Many threads, a start gate, many iterations, and an invariant check. Then make sure the test fails on a deliberately broken version.</li>
+    <li><b>Put the code in your prep repo</b> under <code>java/src/main/java/prep/practice/pNN/</code> or <code>go/practice/pNN/</code> and add a few lines to <code>NOTES.md</code>.</li>
+    <li><b>Get it reviewed:</b> open Claude Code in the repo and ask <code>Review practice problem 13</code>. It's scored with the same rubric as the course.</li>
+  </ul>
+</section>
+
+<!-- ================= GROUP 1 ================= -->
+<section class="group" id="g1">
+  <span class="eyebrow">Group 1</span>
+  <h2>Classic synchronisation puzzles</h2>
+
+  <article class="prob" data-level="e" id="p1">
+    <div class="phead"><span class="pnum">P01</span><h3>Ordered printing</h3><div class="pmeta"><span class="pill e">EASY</span><span class="pill t">ordering</span></div></div>
+    <p>Three threads are started in random order. One calls <code>first()</code>, one <code>second()</code>, one <code>third()</code>. The output must always be “first second third”.</p>
+<pre><code>class Ordered {
+  void first(Runnable print)  throws InterruptedException;
+  void second(Runnable print) throws InterruptedException;
+  void third(Runnable print)  throws InterruptedException;
+}</code></pre>
+    <ul><li>Solve it three ways: <code>CountDownLatch</code>, <code>Semaphore</code>, and a monitor with an int stage.</li><li>No busy-waiting.</li></ul>
+    <div class="hints"><details><summary>Hint 1</summary><p>You need two “gates”: after first, after second.</p></details><details><summary>Hint 2</summary><p>With a monitor: <code>while (stage != 2) wait();</code> then print, increment, <code>notifyAll()</code>.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> correct under 1,000 random start orders; say which version you'd ship and why.</p>
+    <label class="solved"><input type="checkbox" id="s1"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="e" id="p2">
+    <div class="phead"><span class="pnum">P02</span><h3>Foo and bar, n times</h3><div class="pmeta"><span class="pill e">EASY</span><span class="pill t">ordering</span></div></div>
+    <p>Two threads share one object. One loops calling <code>foo()</code> n times, the other <code>bar()</code> n times. Output must be <code>foobarfoobar…</code> with exactly n pairs.</p>
+    <ul><li>Solve with two semaphores, then with <code>ReentrantLock</code> and one <code>Condition</code>, then in Go with two unbuffered channels.</li></ul>
+    <div class="hints"><details><summary>Hint 1</summary><p>Semaphores <code>fooTurn = 1</code>, <code>barTurn = 0</code>. Each side acquires its own and releases the other's.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> works with n = 0 and n = 1; no thread left blocked at the end.</p>
+    <label class="solved"><input type="checkbox" id="s2"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p3">
+    <div class="phead"><span class="pnum">P03</span><h3>Zero, even, odd</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">ordering</span></div></div>
+    <p>Three threads: one prints only 0, one only even numbers, one only odd numbers. Together they print <code>0 1 0 2 0 3 … 0 n</code>.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>The zero thread is the conductor: it prints 0 and then decides who goes next.</p></details><details><summary>Hint 2</summary><p>Three semaphores (zero = 1, odd = 0, even = 0). The odd and even threads release zero when done.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> n odd and n even both terminate; no thread waits forever for a turn that never comes.</p>
+    <label class="solved"><input type="checkbox" id="s3"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p4">
+    <div class="phead"><span class="pnum">P04</span><h3>Multithreaded FizzBuzz</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">ordering</span></div></div>
+    <p>Four threads print FizzBuzz from 1 to n: one prints “Fizz”, one “Buzz”, one “FizzBuzz”, one plain numbers. The sequence must be the normal FizzBuzz order.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Share one counter under a monitor. Each thread waits until the counter is a number it owns, or is past n.</p></details><details><summary>Hint 2</summary><p>Use <code>notifyAll</code>: the next owner can be any of the three other threads.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> all four threads exit, including the ones whose last number came earlier.</p>
+    <label class="solved"><input type="checkbox" id="s4"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p5">
+    <div class="phead"><span class="pnum">P05</span><h3>Build a molecule</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">grouping</span></div></div>
+    <p>Hydrogen and oxygen threads arrive at random. They must leave in groups of exactly two H and one O, and a group's three threads must all “bond” before any thread from the next group does.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Admission: <code>Semaphore h = 2</code>, <code>Semaphore o = 1</code>.</p></details><details><summary>Hint 2</summary><p>A <code>CyclicBarrier(3)</code> whose barrier action releases 2 H permits and 1 O permit for the next group.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> with 2,000 H and 1,000 O threads, every consecutive block of three printed atoms is exactly H, H, O in some order.</p>
+    <label class="solved"><input type="checkbox" id="s5"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p6">
+    <div class="phead"><span class="pnum">P06</span><h3>Dining philosophers</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">deadlock</span></div></div>
+    <p>Five philosophers, five forks, each needs both neighbouring forks to eat. Implement <code>wantsToEat(id, pickLeft, pickRight, eat, putLeft, putRight)</code> with no deadlock.</p>
+    <ul><li>Give two different solutions and explain which deadlock condition each one breaks.</li></ul>
+    <div class="hints"><details><summary>Hint 1</summary><p>Resource ordering: always pick up the lower-numbered fork first.</p></details><details><summary>Hint 2</summary><p>Or limit the table: a <code>Semaphore(4)</code> so at most four philosophers try at once.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> 100,000 meals with no deadlock; can any philosopher starve in your solution?</p>
+    <label class="solved"><input type="checkbox" id="s6"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p7">
+    <div class="phead"><span class="pnum">P07</span><h3>Barber shop</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">producer–consumer</span></div></div>
+    <p>A shop has one barber and N waiting chairs. A customer who finds all chairs taken leaves. If the barber is asleep, an arriving customer wakes them. Each haircut is for exactly one customer, and the customer can't leave until their cut is done.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>State under a lock: waiting count. Semaphores: customers waiting, barber ready, haircut done.</p></details><details><summary>Hint 2</summary><p>Extend to K barbers. What changes, and what doesn't?</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> served + turned away = arrivals; never more than N waiting.</p>
+    <label class="solved"><input type="checkbox" id="s7"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p8">
+    <div class="phead"><span class="pnum">P08</span><h3>Shared bathroom</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">fairness</span></div></div>
+    <p>One bathroom may be used by at most 3 people at a time, and only by members of one of two groups at a time (group A or group B). Implement <code>useA(Runnable)</code> and <code>useB(Runnable)</code>. Neither group may starve the other.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>State: current group, number inside, number of each group waiting. Plus a <code>Semaphore(3)</code> for capacity.</p></details><details><summary>Hint 2</summary><p>To avoid starvation, stop admitting the current group once the other group has someone waiting (like a writer-preferring RW lock).</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> never mixed groups, never more than 3; a steady stream of A cannot block B forever.</p>
+    <label class="solved"><input type="checkbox" id="s8"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p9">
+    <div class="phead"><span class="pnum">P09</span><h3>Ride-share seating</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">grouping</span></div></div>
+    <p>Riders from two groups (say, fans of two rival teams) arrive at random and are seated four to a car. Allowed cars: four of one group, or two and two. Three of one and one of the other is never allowed. Exactly one rider of each car calls <code>drive()</code>, after all four have called <code>seated()</code>.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>A lock guards the counts of each group waiting. The arriving rider who completes a valid four becomes the driver and releases the other three.</p></details><details><summary>Hint 2</summary><p>One semaphore per group to release chosen riders, and a <code>CyclicBarrier(4)</code> so the driver waits until everyone is seated.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> every car is a valid mix; exactly one <code>drive()</code> per car; no rider seated twice.</p>
+    <label class="solved"><input type="checkbox" id="s9"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="e" id="p10">
+    <div class="phead"><span class="pnum">P10</span><h3>Lazy singleton</h3><div class="pmeta"><span class="pill e">EASY</span><span class="pill t">memory model</span></div></div>
+    <p>Create a singleton that's created on first use, created exactly once under any number of concurrent callers, and cheap to access afterwards.</p>
+    <ul><li>Write the broken version, double-checked locking with <code>volatile</code>, the holder idiom, and the enum version. In Go, use <code>sync.OnceValue</code>.</li></ul>
+    <div class="hints"><details><summary>Hint 1</summary><p>Count constructor calls with an AtomicInteger and release 64 threads through a latch at once.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> explain exactly why <code>volatile</code> is needed; how reflection or serialization could still create a second instance.</p>
+    <label class="solved"><input type="checkbox" id="s10"> Solved</label>
+  </article>
+</section>
+
+<!-- ================= GROUP 2 ================= -->
+<section class="group" id="g2">
+  <span class="eyebrow">Group 2</span>
+  <h2>Build the primitive yourself</h2>
+
+  <article class="prob" data-level="m" id="p11">
+    <div class="phead"><span class="pnum">P11</span><h3>Counting semaphore</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">monitor</span></div></div>
+<pre><code>class MySemaphore {
+  MySemaphore(int permits);
+  void acquire() throws InterruptedException;
+  boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException;
+  void release();
+}</code></pre>
+    <ul><li>Built only from <code>synchronized</code>/<code>wait</code>/<code>notify</code>. Then add <code>acquire(n)</code> and argue whether <code>notify</code> is still safe.</li></ul>
+    <div class="hints"><details><summary>Hint 1</summary><p>With <code>acquire(n)</code>, a single notify can wake a thread needing 5 permits when only 1 is free, and the signal is lost. Use notifyAll.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> never more than N holders; timeouts accurate to about 10 ms; interrupt handled.</p>
+    <label class="solved"><input type="checkbox" id="s11"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p12">
+    <div class="phead"><span class="pnum">P12</span><h3>Reusable barrier</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">monitor</span></div></div>
+    <p>Implement <code>await()</code> for N parties that can be used round after round. A fast thread that loops back must not slip through the next round early.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Keep a generation number. Waiters remember the generation they arrived in and wait until it changes.</p></details><details><summary>Hint 2</summary><p>The last arriver resets the count, bumps the generation and calls notifyAll.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> 10,000 rounds with 8 threads; a per-round counter proves nobody ran ahead.</p>
+    <label class="solved"><input type="checkbox" id="s12"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p13">
+    <div class="phead"><span class="pnum">P13</span><h3>Closable blocking queue</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">producer–consumer</span></div></div>
+    <p>Extend a bounded blocking queue with <code>close()</code>. After close, <code>put</code> throws, blocked producers wake and throw, and <code>take</code> drains the remaining items and then returns an end-of-stream marker (empty Optional) to every consumer, including ones already blocked.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>A <code>closed</code> flag under the same lock, and <code>signalAll</code> on both conditions in <code>close()</code>.</p></details><details><summary>Hint 2</summary><p>Compare with Go, where this is just <code>close(ch)</code> plus <code>v, ok := &lt;-ch</code>.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> nothing lost, nothing delivered after end-of-stream, no consumer left blocked.</p>
+    <label class="solved"><input type="checkbox" id="s13"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p14">
+    <div class="phead"><span class="pnum">P14</span><h3>Async to sync</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">bridging</span></div></div>
+    <p>A library offers <code>void compute(Input in, Consumer&lt;Result&gt; callback)</code>, which returns immediately and later calls the callback on a thread of its own. Write <code>Result computeSync(Input in, long timeoutMs)</code> that blocks until the callback fires or the timeout passes.</p>
+    <ul><li>The callback might fire before <code>compute</code> even returns, and might (buggily) fire twice.</li></ul>
+    <div class="hints"><details><summary>Hint 1</summary><p>A <code>CompletableFuture</code> or a <code>CountDownLatch(1)</code> plus a volatile result field; both remember a signal that arrives early.</p></details><details><summary>Hint 2</summary><p>On timeout, what happens if the callback fires later? Make sure that's harmless.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> no missed signal when the callback fires synchronously; the second callback is ignored.</p>
+    <label class="solved"><input type="checkbox" id="s14"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p15">
+    <div class="phead"><span class="pnum">P15</span><h3>Deferred callback executor</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">scheduling</span></div></div>
+    <p>Threads register callbacks, each with a delay in milliseconds. A single executor thread runs each callback once its time comes, in time order. Registering a callback that's due sooner than everything else must wake the executor.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>A min-heap by due time and one Condition. The executor sleeps with <code>awaitNanos(head.due − now)</code>.</p></details><details><summary>Hint 2</summary><p>Always recompute the wait after waking: it may be a new earlier head, a spurious wakeup, or the real deadline.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> each callback runs within 10 ms of its time; zero CPU while idle.</p>
+    <label class="solved"><input type="checkbox" id="s15"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p16">
+    <div class="phead"><span class="pnum">P16</span><h3>Token bucket with a refill thread</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">rate limiting</span></div></div>
+    <p>Build a blocking token bucket (<code>getToken()</code> waits until a token is available) in two versions: a daemon thread adds one token per interval, and a lazy version with no thread that computes tokens from elapsed time. Provide the threaded version through a factory method.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Why a factory? Starting a thread in a constructor lets <code>this</code> escape before construction finishes.</p></details><details><summary>Hint 2</summary><p>In the lazy version, a waiter can compute how long until the next token and sleep exactly that long, instead of polling.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> over 5 seconds at 10 tokens/s, 50 ± 1 tokens granted to 20 competing threads; compare the two designs.</p>
+    <label class="solved"><input type="checkbox" id="s16"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p17">
+    <div class="phead"><span class="pnum">P17</span><h3>Upgradeable read-write lock</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">monitor</span></div></div>
+    <p>A read-write lock with a third mode, <code>upgradeableRead</code>. Only one thread can hold it at a time, it coexists with plain readers, and it can be upgraded to a write lock without deadlock.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Upgrade deadlock happens when two readers both try to upgrade. Allowing only one upgradeable holder removes that cycle.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> an interleaving argument for why upgrade can't deadlock; tests for each mode pair.</p>
+    <label class="solved"><input type="checkbox" id="s17"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p18">
+    <div class="phead"><span class="pnum">P18</span><h3>Multithreaded merge sort</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">parallelism</span></div></div>
+    <p>Sort a 50-million-element int array in parallel. Version 1 starts a new thread for each half (and shows why that's a bad idea). Version 2 uses <code>ForkJoinPool</code> with a sequential cutoff. In Go, bound the goroutines with a depth limit.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Share one scratch buffer across the whole sort instead of allocating one per merge.</p></details><details><summary>Hint 2</summary><p>Plot time against cutoff size (1K, 10K, 100K) and core count. Where does Amdahl show up?</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> matches <code>Arrays.sort</code>; a speedup table; explain why the merge step limits scaling.</p>
+    <label class="solved"><input type="checkbox" id="s18"> Solved</label>
+  </article>
+</section>
+
+<!-- ================= GROUP 3 ================= -->
+<section class="group" id="g3">
+  <span class="eyebrow">Group 3</span>
+  <h2>System components</h2>
+
+  <article class="prob" data-level="e" id="p19">
+    <div class="phead"><span class="pnum">P19</span><h3>Hot-reloadable config</h3><div class="pmeta"><span class="pill e">EASY</span><span class="pill t">publication</span></div></div>
+    <p>Many request threads read a config object on every request. A background thread reloads it from disk every 30 seconds. Readers must never see a half-updated config and must never block.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Immutable config object plus an <code>AtomicReference</code> (or a volatile field), swapped in one write. This is the read-copy-update (RCU) pattern.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> readers take no lock; a reader that reads two fields sees them from the same version.</p>
+    <label class="solved"><input type="checkbox" id="s19"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p20">
+    <div class="phead"><span class="pnum">P20</span><h3>Unique ID generator</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">atomics</span></div></div>
+    <p>Build a Snowflake-style 64-bit ID generator: 41 bits of milliseconds, 10 bits of machine ID, 12 bits of sequence. IDs must be unique and increasing, even with 64 threads calling at once and even if the clock steps backwards.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Pack (lastMillis, sequence) into one <code>AtomicLong</code> and advance it with a CAS loop.</p></details><details><summary>Hint 2</summary><p>If the sequence overflows within a millisecond, move to the next millisecond. If the clock goes backwards, keep using the last timestamp.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> 10 million IDs from 64 threads with no duplicates; simulated clock-skew test.</p>
+    <label class="solved"><input type="checkbox" id="s20"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p21">
+    <div class="phead"><span class="pnum">P21</span><h3>Circuit breaker</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">state machine</span></div></div>
+    <p><code>call(Supplier&lt;T&gt;)</code> with CLOSED, OPEN and HALF_OPEN states. After 5 failures in a row it opens and fails fast for 10 seconds. Then exactly <b>one</b> trial call is let through; success closes the breaker, failure reopens it.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Use an <code>AtomicReference</code> to an immutable state record, updated by CAS, so exactly one thread wins the OPEN → HALF_OPEN transition.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> with 100 threads arriving as the timeout ends, exactly one trial call goes through.</p>
+    <label class="solved"><input type="checkbox" id="s21"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p22">
+    <div class="phead"><span class="pnum">P22</span><h3>Object pool with validation</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">resource limit</span></div></div>
+    <p>A generic pool: <code>borrow(timeout)</code>, <code>giveBack(obj)</code>, <code>invalidate(obj)</code>. It creates objects lazily up to max, validates an object before handing it out, replaces broken ones, and closes idle objects after 60 seconds.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>A <code>Semaphore(max)</code> for capacity, and a concurrent deque of idle objects. Keep the semaphore and the deque consistent when creation throws.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> never more than max objects alive; no permit leak when the factory throws; double give-back detected.</p>
+    <label class="solved"><input type="checkbox" id="s22"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p23">
+    <div class="phead"><span class="pnum">P23</span><h3>Merge K sorted streams</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">producer–consumer</span></div></div>
+    <p>K producer threads each emit a sorted stream of timestamps at their own pace. One consumer must output the merged, globally sorted stream as soon as it's safe to do so.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>You can only emit the smallest item once every producer has either given you its next item or finished. One small queue per producer plus a heap.</p></details><details><summary>Hint 2</summary><p>In Go this is a select-free loop: block on each producer's channel only when its head is empty.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> output sorted and complete; a slow producer delays output but doesn't cause errors.</p>
+    <label class="solved"><input type="checkbox" id="s23"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="m" id="p24">
+    <div class="phead"><span class="pnum">P24</span><h3>Parallel downloader</h3><div class="pmeta"><span class="pill m">MED</span><span class="pill t">Go first</span></div></div>
+    <p>Download 500 URLs with at most 8 in flight at once and at most 2 per host. Report progress (done, failed, bytes) every second. Ctrl-C cancels everything cleanly and prints a summary.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>A global semaphore channel plus a map of per-host semaphores created lazily under a mutex.</p></details><details><summary>Hint 2</summary><p><code>signal.NotifyContext</code> for Ctrl-C; atomic counters read by a ticker goroutine.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> limits respected (instrument and assert); no goroutine leak after cancel; Java version with virtual threads for comparison.</p>
+    <label class="solved"><input type="checkbox" id="s24"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p25">
+    <div class="phead"><span class="pnum">P25</span><h3>Keyed (striped) executor</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">ordering</span></div></div>
+    <p><code>execute(key, task)</code>: tasks with the same key run one at a time in submission order; tasks with different keys run in parallel on a shared pool. Keys are unbounded (user IDs), so per-key state must be cleaned up when idle.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Per key, keep a tail <code>CompletableFuture</code> and chain the new task onto it with <code>thenRunAsync(task, pool)</code>.</p></details><details><summary>Hint 2</summary><p>Remove the key's entry when its tail completes, but only if it's still the tail (<code>map.remove(key, tail)</code>).</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> per-key order holds across 1M tasks; the map is empty after everything is done; different keys really run in parallel.</p>
+    <label class="solved"><input type="checkbox" id="s25"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p26">
+    <div class="phead"><span class="pnum">P26</span><h3>Request batcher</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">batching</span></div></div>
+    <p>Callers call <code>CompletableFuture&lt;V&gt; load(K key)</code> one key at a time. The batcher collects keys and calls the backend's <code>Map&lt;K,V&gt; loadAll(Set&lt;K&gt;)</code> once 100 keys are waiting or 10 ms have passed since the first one, whichever comes first. Duplicate keys in a batch share one lookup.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Under a lock, keep a map from key to a list of futures, and a flag for whether a flush is scheduled.</p></details><details><summary>Hint 2</summary><p>Swap the pending map out under the lock, then call the backend outside it. Complete missing keys exceptionally so no caller waits forever.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> batch sizes ≤ 100; latency ≤ 10 ms plus the backend time; backend failure fails the whole batch cleanly.</p>
+    <label class="solved"><input type="checkbox" id="s26"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p27">
+    <div class="phead"><span class="pnum">P27</span><h3>Bank with consistent audits</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">consistency</span></div></div>
+    <p>10,000 accounts, many threads doing random transfers. An auditor thread periodically sums all balances, and the sum must always equal the starting total. Transfers must not stop while the audit runs for long.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Naive approach: per-account locks in id order, plus a global RW lock where transfers take the read side and the audit takes the write side. What does that cost?</p></details><details><summary>Hint 2</summary><p>Better: versioned balances or a transaction log, so the audit reads a snapshot at a version without stopping writers.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> every audit equals the total; transfer throughput during an audit; no deadlock in 1M transfers.</p>
+    <label class="solved"><input type="checkbox" id="s27"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p28">
+    <div class="phead"><span class="pnum">P28</span><h3>Transactional key-value store</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">isolation</span></div></div>
+    <p><code>begin()</code>, <code>get</code>, <code>put</code>, <code>commit()</code>, <code>rollback()</code>, with each transaction bound to its caller. Other transactions never see uncommitted writes. Commit fails if another transaction committed a write to a key this one read (optimistic concurrency).</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Each transaction keeps a read set with versions and a private write buffer.</p></details><details><summary>Hint 2</summary><p>Commit: under a short global lock (or per-key locks taken in sorted order), check that the read versions are unchanged, then apply the writes and bump versions.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> a lost-update test (two increments of the same key) always ends with either both applied or one failing.</p>
+    <label class="solved"><input type="checkbox" id="s28"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p29">
+    <div class="phead"><span class="pnum">P29</span><h3>Lease lock with fencing tokens</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">distributed</span></div></div>
+    <p>An in-memory lock service: <code>acquire(clientId, leaseMs)</code> returns a monotonically increasing token; leases expire; <code>renew</code> extends a lease. A storage class accepts <code>write(token, data)</code> only when the token is at least the highest seen. Simulate a client that pauses past its lease and then tries to write.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>Expiry is checked on access (no timer thread needed), using a clock you can control in tests.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> the paused client's write is rejected; explain what goes wrong without fencing.</p>
+    <label class="solved"><input type="checkbox" id="s29"> Solved</label>
+  </article>
+
+  <article class="prob" data-level="h" id="p30">
+    <div class="phead"><span class="pnum">P30</span><h3>Deadline-aware task queue</h3><div class="pmeta"><span class="pill h">HARD</span><span class="pill t">scheduling</span></div></div>
+    <p>A worker pool that runs tasks in order of earliest deadline. Tasks already past their deadline are dropped and their futures fail with a timeout. <code>submit</code> rejects a task if the queue's estimated wait (using a moving average of task duration) would already miss its deadline.</p>
+    <div class="hints"><details><summary>Hint 1</summary><p>A <code>PriorityBlockingQueue</code> ordered by deadline, with workers checking the deadline on take.</p></details><details><summary>Hint 2</summary><p>The estimate is roughly queue position × average duration ÷ workers. Keep the average in an atomic, updated after each task.</p></details></div>
+    <p class="checks"><b>Reviewer checks:</b> no expired task is ever run; admission control keeps the miss rate low under 2× overload.</p>
+    <label class="solved"><input type="checkbox" id="s30"> Solved</label>
+  </article>
+</section>
+
+<!-- ================= MOCK ================= -->
+<section id="mock" class="stack">
+  <span class="eyebrow">Mock rounds</span>
+  <h2>Three 60-minute mock rounds</h2>
+  <p>Do these in the last two weeks, with a timer and no hints. Spend 5 minutes on requirements, 10 on design out loud, 35 on code, and 10 on testing and follow-up questions.</p>
+  <div class="mock">
+    <div><h3>Mock A</h3><p><b>Warm-up (15 min):</b> P03 Zero, even, odd</p><p><b>Main (45 min):</b> P15 Deferred callback executor</p><p class="muted">Follow-ups: add cancel; make it multi-worker.</p></div>
+    <div><h3>Mock B</h3><p><b>Warm-up (15 min):</b> P06 Dining philosophers</p><p><b>Main (45 min):</b> P25 Keyed executor</p><p class="muted">Follow-ups: backpressure per key; what if one key is 90% of traffic?</p></div>
+    <div><h3>Mock C</h3><p><b>Warm-up (15 min):</b> P14 Async to sync</p><p><b>Main (45 min):</b> P26 Request batcher</p><p class="muted">Follow-ups: per-key timeouts; how does this change in Go?</p></div>
+  </div>
+</section>
+
+<footer class="stack-sm" style="border-top:1px solid var(--line); padding-top:24px">
+  <p class="muted" style="font-size:13px">Worked solutions for eight core patterns are in the question bank on the <a href="./#bank">course page</a>.</p>
+  <nav class="sitenav" aria-label="Course pages"><a href="./">Course</a><a href="reading.html">Reading questions</a><a href="practice.html" aria-current="page">Practice problems</a></nav>
+</footer>
+
+</div>
+<script>
+(function () {
+  var KEY = "cc-practice-solved";
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.solved input'));
+  var probs = Array.prototype.slice.call(document.querySelectorAll('.prob'));
+  var saved = {};
+  var filter = "all";
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
+  function paint() {
+    var n = 0;
+    boxes.forEach(function (b) { b.closest('.prob').classList.toggle('done', b.checked); if (b.checked) n++; });
+    document.getElementById('count').textContent = n + " / " + boxes.length + " solved";
+    document.getElementById('bar').style.width = (boxes.length ? n / boxes.length * 100 : 0) + "%";
+    probs.forEach(function (p) {
+      var solved = p.classList.contains('done');
+      p.hidden = !(filter === "all" || p.dataset.level === filter || (filter === "todo" && !solved));
+    });
+  }
+  function save() {
+    var s = {};
+    boxes.forEach(function (b) { if (b.checked) s[b.id] = true; });
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+  }
+  boxes.forEach(function (b) { b.checked = !!saved[b.id]; b.addEventListener('change', function () { save(); paint(); }); });
+  document.querySelectorAll('.filters button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      filter = btn.dataset.f;
+      document.querySelectorAll('.filters button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === btn)); });
+      paint();
+    });
+  });
+  paint();
+})();
+</script>
+</body>
+</html>

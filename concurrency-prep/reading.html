@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concurrency Reading Questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+.sitenav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sitenav a { font-family: var(--f-mono); font-size: 12.5px; text-decoration: none; color: var(--muted); padding: 5px 10px; border-radius: 6px; border: 1px solid transparent; }
+.sitenav a[aria-current="page"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.sitenav a:hover, .sitenav a:focus-visible { color: var(--accent); outline: none; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { font: inherit; font-size: 13.5px; font-weight: 600; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rsec { display: flex; flex-direction: column; gap: 10px; padding-top: 28px; border-top: 1px solid var(--line); }
+.rq { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; padding: 12px 0; border-bottom: 1px dashed var(--line); }
+.rq input { width: 17px; height: 17px; margin-top: 4px; accent-color: var(--accent); cursor: pointer; }
+.rq > div { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.rq .q { font-weight: 600; }
+.rq.done .q { color: var(--muted); }
+.rq details > summary { cursor: pointer; font-size: 13.5px; color: var(--accent); width: fit-content; }
+.rq details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rq details > div { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
+.rq details ul { font-size: 15px; }
+.src { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <nav class="sitenav" aria-label="Course pages">
+    <a href="./">Course</a><a href="reading.html" aria-current="page">Reading questions</a><a href="practice.html">Practice problems</a>
+  </nav>
+  <span class="eyebrow">Self-test · explain it out loud before you open the answer</span>
+  <h1>Reading Questions</h1>
+  <p class="lede">The theory questions a senior concurrency round checks, from processes and monitors up to executors and the Go runtime. Answer each one out loud in under two minutes, then compare with the model answer. Tick the ones you can explain without looking.</p>
+  <div class="progress">
+    <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+    <span class="count" id="count">0 / 0 known</span>
+  </div>
+  <div class="toolbar">
+    <button class="btn" id="expand" type="button">Show all answers</button>
+    <button class="btn" id="collapse" type="button">Hide all answers</button>
+    <button class="btn" id="reset" type="button">Clear ticks</button>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#r1">1 · Foundations</a><a href="#r2">2 · Synchronisation theory</a><a href="#r3">3 · Java primitives</a>
+    <a href="#r4">4 · Memory model</a><a href="#r5">5 · Executors</a><a href="#r6">6 · Utilities &amp; collections</a>
+    <a href="#r7">7 · Lock-free</a><a href="#r8">8 · Go</a><a href="#r9">9 · Senior-level design</a>
+  </nav>
+</header>
+
+<!-- 1 -->
+<section class="rsec" id="r1">
+  <span class="eyebrow">Section 1</span>
+  <h2>Foundations</h2>
+
+  <div class="rq"><input type="checkbox" id="r1-1" aria-label="Mark as known"><div>
+    <span class="q">What is the difference between a program, a process and a thread?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A <b>program</b> is code on disk. A <b>process</b> is a running instance of it with its own address space, file descriptors and at least one thread; processes are isolated, so sharing needs IPC. A <b>thread</b> is a unit of execution inside a process: it has its own stack, registers and program counter, but shares the heap and globals with the other threads of that process. Shared memory is what makes threads cheap to communicate through and what makes them dangerous.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-2" aria-label="Mark as known"><div>
+    <span class="q">Concurrency vs parallelism?</span>
+    <details><summary>Model answer</summary><div>
+      <p><b>Concurrency</b> is structuring a program as independently progressing tasks whose lifetimes overlap; it works even on one core through interleaving. <b>Parallelism</b> is tasks literally executing at the same instant on multiple cores. Concurrency is about dealing with many things; parallelism is about doing many things. A web server handling 10,000 idle connections is highly concurrent and barely parallel.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-3" aria-label="Mark as known"><div>
+    <span class="q">Cooperative vs preemptive multitasking. Where do Java virtual threads and goroutines fit?</span>
+    <details><summary>Model answer</summary><div>
+      <p>In <b>cooperative</b> multitasking a task runs until it voluntarily yields, so one misbehaving task can starve the rest. In <b>preemptive</b> multitasking the scheduler interrupts tasks on a timer, which is what OS threads get. Java <b>virtual threads</b> are unmounted from their carrier only at blocking points (I/O, locks, sleep), so a tight CPU loop keeps its carrier busy. <b>Goroutines</b> were mostly cooperative until Go 1.14 added asynchronous preemption via signals, so a tight loop can now be preempted.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-4" aria-label="Mark as known"><div>
+    <span class="q">Synchronous vs asynchronous execution?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A <b>synchronous</b> call blocks the caller until the result is ready. An <b>asynchronous</b> call returns immediately with a handle (a Future, a callback registration, a channel) and the result arrives later. Async frees the caller's thread but spreads control flow across callbacks; structured concurrency and virtual threads try to recover synchronous-looking code without the thread cost.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-5" aria-label="Mark as known"><div>
+    <span class="q">I/O-bound vs CPU-bound work: how does it change your thread count?</span>
+    <details><summary>Model answer</summary><div>
+      <p>CPU-bound threads are always busy, so more threads than cores only adds context switches: use about <code>Ncpu</code> (+1 to cover the occasional page fault). I/O-bound threads spend most of their time waiting, so you need more of them to keep the CPU busy: <code>Ncpu × (1 + wait/compute)</code>. In practice the limit is often a downstream resource (DB connections, remote rate limits), so size against that too.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-6" aria-label="Mark as known"><div>
+    <span class="q">Throughput vs latency. Can adding threads make one better and the other worse?</span>
+    <details><summary>Model answer</summary><div>
+      <p><b>Throughput</b> is work completed per unit time; <b>latency</b> is how long one piece of work takes. Yes: more threads can raise throughput while raising latency (more queueing and contention per request), and batching raises throughput by making individual items wait. Little's Law ties them together: <code>concurrency = throughput × latency</code>.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-7" aria-label="Mark as known"><div>
+    <span class="q">State Amdahl's Law. If 10% of a job is serial, what is the maximum speedup?</span>
+    <details><summary>Model answer</summary><div>
+      <p><code>speedup(n) = 1 / (s + (1 − s)/n)</code>, where <code>s</code> is the serial fraction and <code>n</code> the number of processors. With <code>s = 0.1</code> the limit as n grows is <code>1/0.1 = 10×</code>; with 16 cores you get about 6.4×. The practical lesson: shrinking the serial part (lock-held sections, single-threaded merge steps) matters more than adding cores. Gustafson's Law is the counterpoint: with more cores you usually grow the problem size, not just shrink the time.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-8" aria-label="Mark as known"><div>
+    <span class="q">What does Moore's Law have to do with concurrency?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Transistor counts kept doubling, but around 2005 clock speeds stopped rising because of power and heat limits. Chip makers spent the extra transistors on more cores instead. Single-threaded code stopped getting faster for free, so exploiting parallelism became the programmer's job.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-9" aria-label="Mark as known"><div>
+    <span class="q">Define critical section, race condition and data race. Are the last two the same thing?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A <b>critical section</b> is code that accesses shared state and must not be run by two threads at once. A <b>race condition</b> is a bug where correctness depends on timing, like check-then-act (<code>if (!map.containsKey(k)) map.put(k, v)</code>) or read-modify-write (<code>count++</code>). A <b>data race</b> is a memory-model term: two unsynchronised accesses to the same variable, at least one a write. They differ: you can have a race condition with no data race (each call is synchronised but the sequence isn't atomic), and a benign-looking data race without a logical race.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-10" aria-label="Mark as known"><div>
+    <span class="q">What are the four conditions for deadlock, and how do you break each?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>Mutual exclusion:</b> resources can't be shared. Break it with lock-free structures or immutable data.</li>
+        <li><b>Hold and wait:</b> a thread holds one resource while waiting for another. Break it by acquiring everything at once, or releasing before waiting.</li>
+        <li><b>No preemption:</b> a resource can't be taken away. Break it with <code>tryLock(timeout)</code> and back off.</li>
+        <li><b>Circular wait:</b> a cycle in the wait-for graph. Break it with a global lock order (e.g. by account id). This is the fix interviewers expect.</li>
+      </ul>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-11" aria-label="Mark as known"><div>
+    <span class="q">Deadlock vs livelock vs starvation, with an example of each.</span>
+    <details><summary>Model answer</summary><div>
+      <p><b>Deadlock:</b> threads block forever waiting on each other (two transfers locking accounts in opposite order). <b>Livelock:</b> threads keep running but make no progress, e.g. two threads that both <code>tryLock</code>, fail, back off and retry in lockstep; fix with randomised backoff. <b>Starvation:</b> one thread never gets a turn, e.g. a writer that never acquires a read-preferring RW lock under constant reads; fix with fairness or writer preference.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r1-12" aria-label="Mark as known"><div>
+    <span class="q">What is a reentrant lock, and what would happen without reentrancy?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A reentrant lock can be acquired again by the thread that already holds it; it keeps a hold count and is released when the count drops to zero. Without reentrancy, a <code>synchronized</code> method calling another <code>synchronized</code> method on the same object (or an overriding method calling <code>super</code>) would deadlock on itself. Both <code>synchronized</code> and <code>ReentrantLock</code> are reentrant; <code>Semaphore</code> is not.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 2 -->
+<section class="rsec" id="r2">
+  <span class="eyebrow">Section 2</span>
+  <h2>Synchronisation theory</h2>
+
+  <div class="rq"><input type="checkbox" id="r2-1" aria-label="Mark as known"><div>
+    <span class="q">Mutex vs semaphore?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A <b>mutex</b> gives exclusive access and has an <b>owner</b>: only the thread that locked it may unlock it. A <b>semaphore</b> is a counter of permits with no owner: any thread can release, which makes it a <b>signalling</b> tool as well as a limit on concurrent access (e.g. at most 10 DB connections). A binary semaphore looks like a mutex but lacks ownership, so it can't be reentrant and can't detect an unlock by the wrong thread.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r2-2" aria-label="Mark as known"><div>
+    <span class="q">What is a monitor? How does it relate to a mutex?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A monitor is a mutex plus one or more <b>condition variables</b>, bound to the data they protect. The mutex gives mutual exclusion; the condition variables let a thread wait for a state (“queue not empty”) while releasing the mutex atomically, and be woken when another thread changes it. In Java every object is a monitor: <code>synchronized</code> is the mutex and <code>wait/notify</code> the single condition variable.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r2-3" aria-label="Mark as known"><div>
+    <span class="q">Hoare vs Mesa monitors. Which does Java use, and what does it force you to write?</span>
+    <details><summary>Model answer</summary><div>
+      <p>In a <b>Hoare</b> monitor the signaller hands the monitor directly to the woken thread, so the condition is guaranteed true when it resumes. In a <b>Mesa</b> monitor, signalling only moves the waiter back to compete for the lock; by the time it runs, another thread may have changed the state. Java (and pthreads, and Go's <code>sync.Cond</code>) are Mesa, so you must re-check the condition in a loop: <code>while (!cond) wait();</code>. Mesa is cheaper and also tolerates spurious wakeups.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r2-4" aria-label="Mark as known"><div>
+    <span class="q">Semaphore vs monitor: when would you pick each?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Use a <b>semaphore</b> when the state is naturally a count (permits, slots, items) or when one thread signals another with no shared data. Use a <b>monitor</b> when the waiting condition is an arbitrary predicate over shared state (“no writer active and no writer waiting”). Monitors are generally easier to reason about because the state and the lock live together; semaphores are easy to misuse with a forgotten or doubled release.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r2-5" aria-label="Mark as known"><div>
+    <span class="q">What is a missed signal, and how do you prevent it?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A notify sent when no thread is waiting is lost: condition variables have no memory. If the signaller runs first, the waiter then calls <code>wait()</code> and sleeps forever. The fix is to always wait on a <b>state predicate</b> guarded by the lock (<code>while (!ready) wait();</code>), so a thread that arrives late sees the state change and never waits. A semaphore also works, because its permit count remembers the signal.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r2-6" aria-label="Mark as known"><div>
+    <span class="q">What is a spurious wakeup and why does it exist?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A thread returns from <code>wait()</code> or <code>await()</code> without having been signalled. The spec allows it because some OS primitives (e.g. futex-based implementations handling signals) can't cheaply avoid it, and allowing it makes the implementation faster. The <code>while</code> loop around every wait handles it at no extra cost.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 3 -->
+<section class="rsec" id="r3">
+  <span class="eyebrow">Section 3</span>
+  <h2>Java primitives</h2>
+
+  <div class="rq"><input type="checkbox" id="r3-1" aria-label="Mark as known"><div>
+    <span class="q">What does <code>synchronized</code> guarantee? What is the difference between a synchronized instance method and a synchronized static method?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Mutual exclusion on one monitor and visibility: everything a thread wrote before releasing the monitor is visible to the next thread that acquires it. An instance method locks <code>this</code>; a static method locks the <code>Class</code> object. They are different monitors, so a static and an instance synchronized method can run at the same time. Prefer locking on a <code>private final Object</code> so outside code can't take your lock.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-2" aria-label="Mark as known"><div>
+    <span class="q">Rules for <code>wait</code>, <code>notify</code> and <code>notifyAll</code>. When is <code>notify</code> safe?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li>You must hold the object's monitor, or you get <code>IllegalMonitorStateException</code>.</li>
+        <li><code>wait()</code> releases the monitor atomically and reacquires it before returning.</li>
+        <li>Always wait in a <code>while</code> loop over the predicate.</li>
+        <li><code>notify()</code> wakes one arbitrary waiter. It's only safe when all waiters wait for the same condition and any one of them can make progress. If producers and consumers share one wait set, <code>notify</code> can wake the wrong kind and the signal is lost, so use <code>notifyAll</code>, or two <code>Condition</code>s.</li>
+      </ul>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-3" aria-label="Mark as known"><div>
+    <span class="q">How does thread interruption work, and what should you do when you catch <code>InterruptedException</code>?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Interruption is cooperative: <code>t.interrupt()</code> sets a flag. Blocking methods (<code>sleep</code>, <code>wait</code>, <code>join</code>, <code>BlockingQueue.take</code>, <code>lockInterruptibly</code>) notice it, clear the flag and throw <code>InterruptedException</code>. Code that isn't blocking must poll <code>Thread.currentThread().isInterrupted()</code>. When you catch it, either rethrow, or restore the flag with <code>Thread.currentThread().interrupt()</code> so callers up the stack still see it. Never swallow it. Note <code>Thread.interrupted()</code> clears the flag; <code>isInterrupted()</code> doesn't. Waiting to enter a <code>synchronized</code> block can't be interrupted.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-4" aria-label="Mark as known"><div>
+    <span class="q">What does <code>volatile</code> guarantee, and when is it enough on its own?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Visibility (a read sees the latest write) and ordering (a volatile write happens-before every later read of that variable, so writes made before it are visible too). It does <b>not</b> make compound actions atomic, so <code>volatile int count; count++</code> still loses updates. It's enough when writes don't depend on the current value and the variable isn't part of an invariant with other variables: stop flags, a published immutable config reference, the instance field in double-checked locking.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-5" aria-label="Mark as known"><div>
+    <span class="q"><code>ReentrantLock</code> vs <code>synchronized</code>: what does the explicit lock add?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><code>tryLock()</code> and <code>tryLock(timeout)</code> for deadlock avoidance.</li>
+        <li><code>lockInterruptibly()</code>.</li>
+        <li>Optional fairness (FIFO hand-off, lower throughput).</li>
+        <li>Multiple <code>Condition</code>s per lock (e.g. <code>notFull</code> and <code>notEmpty</code>).</li>
+        <li>Locking and unlocking in different scopes, e.g. hand-over-hand locking in a linked list.</li>
+      </ul>
+      <p>The cost: you must unlock in <code>finally</code> yourself. Use <code>synchronized</code> by default for simple cases; it's also no longer a pinning problem for virtual threads from JDK 24.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-6" aria-label="Mark as known"><div>
+    <span class="q">How does <code>AbstractQueuedSynchronizer</code> (AQS) work?</span>
+    <details><summary>Model answer</summary><div>
+      <p>AQS is the base of <code>ReentrantLock</code>, <code>Semaphore</code>, <code>CountDownLatch</code> and <code>ReentrantReadWriteLock</code>. It holds one <code>volatile int state</code> updated by CAS and a FIFO queue of waiting threads (a CLH-queue variant). Subclasses define what acquiring and releasing mean by overriding <code>tryAcquire/tryRelease</code> (exclusive) or <code>tryAcquireShared/tryReleaseShared</code> (shared). AQS handles queuing, parking with <code>LockSupport.park</code>, waking successors, timeouts and interrupts. For a lock, state is the hold count; for a semaphore, the permits; for a latch, the remaining count.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-7" aria-label="Mark as known"><div>
+    <span class="q">Can you upgrade a read lock to a write lock in <code>ReentrantReadWriteLock</code>? Downgrade?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Upgrade: no. Two readers trying to upgrade would each wait for the other to release its read lock, a guaranteed deadlock, so the thread just blocks forever. Downgrade: yes. Acquire the read lock while still holding the write lock, then release the write lock. <code>StampedLock</code> offers <code>tryConvertToWriteLock</code>, which fails instead of deadlocking.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-8" aria-label="Mark as known"><div>
+    <span class="q">What is <code>StampedLock</code>'s optimistic read, and when is it worth it?</span>
+    <details><summary>Model answer</summary><div>
+      <p><code>tryOptimisticRead()</code> returns a stamp without locking. You read the fields into locals, then call <code>validate(stamp)</code>: if no write happened, the read was consistent; otherwise fall back to a real read lock. It's worth it for very read-heavy, short reads of a few fields (a point's x and y), because readers write nothing to shared memory. It isn't reentrant and has no Conditions.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-9" aria-label="Mark as known"><div>
+    <span class="q">Fair vs unfair locks: why is unfair the default?</span>
+    <details><summary>Model answer</summary><div>
+      <p>An unfair lock lets a newly arriving thread grab the lock ahead of queued ones (“barging”). That avoids waking a parked thread and waiting for it to be scheduled while the lock sits idle, so throughput is much higher. Fair locks guarantee FIFO order and prevent starvation, at a large throughput cost. Use fair only when you have observed starvation.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r3-10" aria-label="Mark as known"><div>
+    <span class="q">Why is double-checked locking broken without <code>volatile</code>? Give two better alternatives.</span>
+    <details><summary>Model answer</summary><div>
+      <p><code>instance = new Singleton()</code> is allocation, construction and assignment. Without <code>volatile</code>, the assignment can become visible to another thread before the constructor's writes, so the unlocked first check sees a non-null reference to a half-built object. <code>volatile</code> adds the missing happens-before edge. Better alternatives: the <b>holder idiom</b> (a nested static class whose initialiser the JVM runs lazily and thread-safely) or an <b>enum</b> singleton.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 4 -->
+<section class="rsec" id="r4">
+  <span class="eyebrow">Section 4</span>
+  <h2>Java Memory Model</h2>
+
+  <div class="rq"><input type="checkbox" id="r4-1" aria-label="Mark as known"><div>
+    <span class="q">Why can instructions be reordered, and show a program whose outcome surprises people.</span>
+    <details><summary>Model answer</summary><div>
+      <p>Compilers, the JIT and CPUs reorder independent operations for speed (store buffers, out-of-order execution, register caching). Each thread still sees its own program order, but other threads may not.</p>
+<pre><code>int x = 0, y = 0;
+// Thread 1: x = 1; r1 = y;
+// Thread 2: y = 1; r2 = x;</code></pre>
+      <p>Both <code>r1 == 0</code> and <code>r2 == 0</code> is possible, even though it is impossible under any interleaving of the four statements. Making <code>x</code> and <code>y</code> volatile forbids it.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r4-2" aria-label="Mark as known"><div>
+    <span class="q">List the main happens-before rules.</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>Program order:</b> each action in a thread happens-before later actions in that thread.</li>
+        <li><b>Monitor:</b> an unlock happens-before every later lock of the same monitor.</li>
+        <li><b>Volatile:</b> a write happens-before every later read of the same variable.</li>
+        <li><b>Thread start:</b> <code>t.start()</code> happens-before anything in <code>t</code>.</li>
+        <li><b>Thread end:</b> everything in <code>t</code> happens-before another thread returns from <code>t.join()</code>.</li>
+        <li><b>Interrupt:</b> <code>t.interrupt()</code> happens-before <code>t</code> detecting it.</li>
+        <li><b>Final fields:</b> the end of a constructor happens-before any read of the object's final fields through a properly published reference.</li>
+        <li><b>Transitivity:</b> A → B and B → C gives A → C.</li>
+      </ul>
+      <p>The <code>java.util.concurrent</code> classes add their own: putting into a <code>BlockingQueue</code> happens-before taking it out, submitting a task happens-before it runs, and a task's completion happens-before <code>Future.get()</code> returns.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r4-3" aria-label="Mark as known"><div>
+    <span class="q">What is safe publication? Name four ways to do it.</span>
+    <details><summary>Model answer</summary><div>
+      <p>Making an object's reference and its fully constructed state visible to other threads together. Ways to do it:</p>
+      <ol>
+        <li>Initialise it from a static initialiser.</li>
+        <li>Store the reference in a <code>volatile</code> field or an <code>AtomicReference</code>.</li>
+        <li>Store it in a <code>final</code> field of a properly constructed object.</li>
+        <li>Store it in a field guarded by a lock, or in a thread-safe collection.</li>
+      </ol>
+      <p>Also: don't let <code>this</code> escape during construction, for example by starting a thread or registering a listener from the constructor.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r4-4" aria-label="Mark as known"><div>
+    <span class="q">What is false sharing and how do you fix it?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Two threads write to different variables that happen to sit on the same 64-byte cache line. Each write invalidates the other core's copy, so the line ping-pongs between cores and performance collapses even though there's no logical sharing. Fix with padding, <code>@jdk.internal.vm.annotation.Contended</code> (used inside the JDK, e.g. in <code>LongAdder</code>'s cells), or by giving each thread its own data and combining at the end.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 5 -->
+<section class="rsec" id="r5">
+  <span class="eyebrow">Section 5</span>
+  <h2>Executors and thread pools</h2>
+
+  <div class="rq"><input type="checkbox" id="r5-1" aria-label="Mark as known"><div>
+    <span class="q">What problem does the Executor framework solve? Name its main interfaces.</span>
+    <details><summary>Model answer</summary><div>
+      <p>It separates <b>submitting</b> a task from <b>how and when it runs</b>, so you can change the execution policy (pool size, queue, rejection) without touching the calling code, and stop creating a thread per task. Interfaces: <code>Executor</code> (<code>execute(Runnable)</code>), <code>ExecutorService</code> (adds <code>submit</code>, <code>invokeAll/invokeAny</code> and lifecycle), and <code>ScheduledExecutorService</code> (delays and periodic tasks).</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-2" aria-label="Mark as known"><div>
+    <span class="q">Name the seven constructor parameters of <code>ThreadPoolExecutor</code>.</span>
+    <details><summary>Model answer</summary><div>
+      <p><code>corePoolSize</code>, <code>maximumPoolSize</code>, <code>keepAliveTime</code>, <code>unit</code>, <code>workQueue</code>, <code>threadFactory</code> (names, daemon flag, uncaught-exception handler) and <code>handler</code> (the rejection policy). Also useful: <code>allowCoreThreadTimeOut(true)</code> and <code>prestartAllCoreThreads()</code>. Recall the order <code>execute()</code> uses them: core threads, then the queue, then extra threads up to max, then reject.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-3" aria-label="Mark as known"><div>
+    <span class="q">Compare the pool types from <code>Executors</code>. Which would you use in production?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>newFixedThreadPool(n):</b> n threads with an unbounded <code>LinkedBlockingQueue</code>. Risk: the queue grows until memory runs out.</li>
+        <li><b>newCachedThreadPool():</b> 0 to unlimited threads with a <code>SynchronousQueue</code> and a 60 s keep-alive. Risk: unbounded threads.</li>
+        <li><b>newSingleThreadExecutor():</b> sequential execution, and it replaces the thread if it dies.</li>
+        <li><b>newScheduledThreadPool(n):</b> delayed and periodic tasks.</li>
+        <li><b>newWorkStealingPool():</b> a <code>ForkJoinPool</code> with one queue per worker.</li>
+        <li><b>newVirtualThreadPerTaskExecutor():</b> one virtual thread per task (Java 21).</li>
+      </ul>
+      <p>In production, construct <code>ThreadPoolExecutor</code> directly with a bounded queue, named threads and an explicit rejection policy, and expose its metrics (active count, queue size).</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-4" aria-label="Mark as known"><div>
+    <span class="q">Why is <code>ScheduledThreadPoolExecutor</code> preferred over <code>java.util.Timer</code>?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><code>Timer</code> has a single thread, so one slow task delays all the others.</li>
+        <li>An uncaught exception in a <code>TimerTask</code> kills that thread, and the <code>Timer</code> is then dead: later scheduling throws <code>IllegalStateException</code>.</li>
+        <li><code>Timer</code> schedules on the wall clock, so changing the system clock shifts tasks.</li>
+      </ul>
+      <p><code>ScheduledThreadPoolExecutor</code> can use several threads and measures time with <code>nanoTime</code>. An exception only cancels future runs of that one task, and it shows up in the task's <code>ScheduledFuture</code>.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-5" aria-label="Mark as known"><div>
+    <span class="q"><code>Runnable</code> vs <code>Callable</code>, and what <code>Future</code> gives you.</span>
+    <details><summary>Model answer</summary><div>
+      <p><code>Runnable.run()</code> returns nothing and can't throw checked exceptions. <code>Callable.call()</code> returns a value and can throw. <code>submit</code> returns a <code>Future</code>, with <code>get()</code> and <code>get(timeout)</code> (exceptions arrive wrapped in <code>ExecutionException</code>), <code>cancel(mayInterrupt)</code>, <code>isDone()</code> and <code>isCancelled()</code>. A plain Future can't be composed or completed from outside; <code>CompletableFuture</code> adds both.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-6" aria-label="Mark as known"><div>
+    <span class="q">What is a <code>CompletionService</code>, and when do you need one?</span>
+    <details><summary>Model answer</summary><div>
+      <p><code>ExecutorCompletionService</code> wraps an executor and puts each finished Future on an internal <code>BlockingQueue</code>. <code>take()</code> then returns results in <b>completion order</b> rather than submission order. Use it when you fire N tasks and want to handle each result as soon as it's ready, or stop after the first K. Looping over a list of Futures calling <code>get()</code> blocks on the slowest task first.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-7" aria-label="Mark as known"><div>
+    <span class="q">How do exceptions behave in a thread pool, and how do you make sure none go unnoticed?</span>
+    <details><summary>Model answer</summary><div>
+      <p>With <code>execute()</code>, the exception reaches the thread's <code>UncaughtExceptionHandler</code> (the default prints it) and the worker thread is replaced. With <code>submit()</code>, it is captured in the Future and is lost if no one calls <code>get()</code>. Options:</p>
+      <ul>
+        <li>Always check your Futures.</li>
+        <li>Override <code>afterExecute(r, t)</code> and unwrap the Future there.</li>
+        <li>Wrap tasks in a try/catch that logs.</li>
+        <li>Set a handler in the <code>ThreadFactory</code>.</li>
+      </ul>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-8" aria-label="Mark as known"><div>
+    <span class="q">How does <code>ForkJoinPool</code> differ from <code>ThreadPoolExecutor</code>?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Each worker has its own deque. It pushes and pops its own subtasks from one end (LIFO, cache-friendly), and idle workers <b>steal</b> from the other end of busy workers' deques. A task that calls <code>join()</code> runs other queued tasks while it waits, so recursive divide-and-conquer doesn't cause the pool-induced deadlock a fixed pool would. It's the backing pool for parallel streams, for <code>CompletableFuture</code>'s default async executor (<code>commonPool</code>, about cores − 1 threads) and for virtual-thread carriers. It's a bad fit for blocking I/O.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-9" aria-label="Mark as known"><div>
+    <span class="q">How do virtual threads work, and what is pinning?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A virtual thread is a heap-allocated continuation that the JVM mounts on a small pool of carrier OS threads (a <code>ForkJoinPool</code>). When it blocks on I/O, a lock, sleep or a queue, the JVM saves its stack to the heap and frees the carrier for another virtual thread, so millions of mostly-blocked tasks are cheap. <b>Pinning</b> is when it can't unmount: inside native frames, and on JDK 21–23 inside <code>synchronized</code> blocks (fixed in JDK 24 by JEP 491). A pinned blocking call holds the carrier, and with enough of them the program stalls. Don't pool virtual threads; bound resources with a <code>Semaphore</code> instead.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r5-10" aria-label="Mark as known"><div>
+    <span class="q">Write the standard graceful-shutdown sequence for an <code>ExecutorService</code>.</span>
+    <details><summary>Model answer</summary><div>
+<pre><code>pool.shutdown();                                   // stop accepting new tasks
+try {
+  if (!pool.awaitTermination(30, TimeUnit.SECONDS)) {
+    pool.shutdownNow();                            // interrupt running tasks
+    if (!pool.awaitTermination(10, TimeUnit.SECONDS))
+      log.error("pool did not terminate");
+  }
+} catch (InterruptedException e) {
+  pool.shutdownNow();
+  Thread.currentThread().interrupt();
+}</code></pre>
+      <p>Since Java 19, <code>ExecutorService</code> is <code>AutoCloseable</code>, and <code>close()</code> does the first half for you.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 6 -->
+<section class="rsec" id="r6">
+  <span class="eyebrow">Section 6</span>
+  <h2>Utilities, ThreadLocal and concurrent collections</h2>
+
+  <div class="rq"><input type="checkbox" id="r6-1" aria-label="Mark as known"><div>
+    <span class="q"><code>CountDownLatch</code> vs <code>CyclicBarrier</code> vs <code>Phaser</code>?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>CountDownLatch:</b> one-shot. Any threads count down; waiters are released at zero. It can't be reset. Typical uses: waiting for N services to start, or a start gun for a test.</li>
+        <li><b>CyclicBarrier:</b> N parties wait for each other, then all proceed; it resets for the next round. It has an optional barrier action run by the last thread to arrive. If one party is interrupted or times out, the others get <code>BrokenBarrierException</code>.</li>
+        <li><b>Phaser:</b> a reusable barrier where the number of parties can change (register and deregister), with multiple phases. Use it when the set of participants changes over time.</li>
+      </ul>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r6-2" aria-label="Mark as known"><div>
+    <span class="q">How is <code>ThreadLocal</code> implemented, and why does it leak in thread pools?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Each <code>Thread</code> holds a <code>ThreadLocalMap</code> whose keys are weak references to the <code>ThreadLocal</code> objects and whose values are strong references. In a pool, threads live forever, so:</p>
+      <ol>
+        <li>A value set by one task is still there for the next task. That leaks data between requests, for example a user ID.</li>
+        <li>The values are never garbage-collected.</li>
+      </ol>
+      <p>Always <code>remove()</code> in <code>finally</code>. Alternatives: pass context explicitly, or use <code>ScopedValue</code> (final in JDK 25), which is bound to a block of code and suits virtual threads.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r6-3" aria-label="Mark as known"><div>
+    <span class="q">How does <code>ConcurrentHashMap</code> (Java 8+) achieve concurrency? Why doesn't it allow null?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>Reads</b> take no lock: they are volatile reads of the table and the nodes.</li>
+        <li><b>Writes</b> CAS a new node into an empty bin, and otherwise <code>synchronized</code> on the bin's first node, so writers only contend when they hit the same bin.</li>
+        <li>Bins with long chains become red-black trees.</li>
+        <li><b>Resizing</b> is shared: threads that write during a resize help move bins.</li>
+        <li><code>size()</code> sums striped counter cells, like <code>LongAdder</code>.</li>
+      </ul>
+      <p>No nulls, because <code>get(k) == null</code> must unambiguously mean “absent”. With concurrent writers you can't follow it with <code>containsKey</code> to disambiguate.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r6-4" aria-label="Mark as known"><div>
+    <span class="q"><code>Collections.synchronizedMap</code> vs <code>ConcurrentHashMap</code>?</span>
+    <details><summary>Model answer</summary><div>
+      <p><code>synchronizedMap</code> wraps every method in one lock: it's simple but all operations are serialised, and you must hold the lock manually while iterating or you get <code>ConcurrentModificationException</code>. <code>ConcurrentHashMap</code> lets operations run in parallel, its iterators are <b>weakly consistent</b> (no exception; they may or may not see concurrent updates), and it has atomic compound operations (<code>putIfAbsent</code>, <code>compute</code>, <code>merge</code>).</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r6-5" aria-label="Mark as known"><div>
+    <span class="q">When is <code>CopyOnWriteArrayList</code> the right choice?</span>
+    <details><summary>Model answer</summary><div>
+      <p>When reads and iteration vastly outnumber writes, for example a listener list or a routing table updated rarely. Every write copies the whole array, and readers iterate over an immutable snapshot with no locking. For write-heavy workloads it's terrible, O(n) per write.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r6-6" aria-label="Mark as known"><div>
+    <span class="q">Which <code>BlockingQueue</code> implementation would you choose, and why?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>ArrayBlockingQueue:</b> bounded, one lock, no allocation per item.</li>
+        <li><b>LinkedBlockingQueue:</b> optionally bounded, separate put and take locks, so producers and consumers contend less.</li>
+        <li><b>SynchronousQueue:</b> zero capacity; every put waits for a matching take.</li>
+        <li><b>PriorityBlockingQueue:</b> unbounded, ordered.</li>
+        <li><b>DelayQueue:</b> items become available only after their delay expires.</li>
+        <li><b>LinkedTransferQueue:</b> producers can wait until a consumer receives the item.</li>
+      </ul>
+      <p>Other concurrent collections: <code>ConcurrentSkipListMap</code> is a sorted, lock-free map, and <code>ConcurrentLinkedQueue</code> is a non-blocking queue.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 7 -->
+<section class="rsec" id="r7">
+  <span class="eyebrow">Section 7</span>
+  <h2>Atomics and lock-free programming</h2>
+
+  <div class="rq"><input type="checkbox" id="r7-1" aria-label="Mark as known"><div>
+    <span class="q">What is CAS, and what does a CAS retry loop look like?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Compare-and-swap is a single CPU instruction: set a memory location to a new value only if it still holds the expected value, and report whether it did. Lock-free algorithms read the current value, compute a new one, attempt the CAS, and retry on failure:</p>
+<pre><code>int prev, next;
+do {
+  prev = value.get();
+  next = Math.max(prev, candidate);
+} while (!value.compareAndSet(prev, next));</code></pre>
+      <p>This is exactly what <code>value.accumulateAndGet(candidate, Math::max)</code> does.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r7-2" aria-label="Mark as known"><div>
+    <span class="q">What is the ABA problem?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Thread 1 reads A and gets delayed. Thread 2 changes the value to B and back to A, perhaps freeing and reusing a node. Thread 1's CAS succeeds because it still sees A, but the structure underneath has changed; in a lock-free stack this corrupts the list. Fixes: a version stamp (<code>AtomicStampedReference</code>), or relying on garbage collection so a node can't be reused while someone still holds a reference. That's why ABA is much rarer in Java than in C++.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r7-3" aria-label="Mark as known"><div>
+    <span class="q"><code>AtomicLong</code> vs <code>LongAdder</code>?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Under heavy contention, <code>AtomicLong</code>'s CAS keeps failing and retrying on one cache line. <code>LongAdder</code> spreads updates across padded cells, typically one per contending thread, and <code>sum()</code> adds them up. Increments scale far better, but <code>sum()</code> is not an atomic snapshot and there's no <code>compareAndSet</code>. Use <code>LongAdder</code> for counters and metrics, and <code>AtomicLong</code> for sequence numbers or anything that needs CAS.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r7-4" aria-label="Mark as known"><div>
+    <span class="q">Blocking vs lock-free vs wait-free?</span>
+    <details><summary>Model answer</summary><div>
+      <p><b>Blocking:</b> a thread paused while holding a lock can stop everyone. <b>Lock-free:</b> some thread always makes progress, though an individual thread may retry forever. <b>Wait-free:</b> every thread finishes in a bounded number of its own steps. Wait-free is the strongest and hardest to build. Lock-free doesn't automatically mean faster: under high contention a well-designed lock can win.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 8 -->
+<section class="rsec" id="r8">
+  <span class="eyebrow">Section 8</span>
+  <h2>Go concurrency</h2>
+
+  <div class="rq"><input type="checkbox" id="r8-1" aria-label="Mark as known"><div>
+    <span class="q">Explain Go's G-M-P scheduler.</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>G</b> is a goroutine: a small, growable stack starting at about 2 KB.</li>
+        <li><b>M</b> is an OS thread.</li>
+        <li><b>P</b> is a logical processor holding a local run queue. There are <code>GOMAXPROCS</code> of them.</li>
+      </ul>
+      <p>An M must hold a P to run Gs. Idle Ps steal Gs from other Ps' queues. When a G makes a blocking syscall, its M gives up its P so another M can keep running Gs. Network I/O goes through the netpoller (epoll or kqueue), so goroutines waiting on sockets don't hold threads at all. Since Go 1.14 the runtime can preempt long-running goroutines asynchronously.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r8-2" aria-label="Mark as known"><div>
+    <span class="q">What happens when you send, receive and close on a nil, open and closed channel?</span>
+    <details><summary>Model answer</summary><div>
+      <div class="tbl"><table>
+        <thead><tr><th>Operation</th><th>nil</th><th>open</th><th>closed</th></tr></thead>
+        <tbody>
+          <tr><td>send</td><td>blocks forever</td><td>blocks until received or buffered</td><td><b>panic</b></td></tr>
+          <tr><td>receive</td><td>blocks forever</td><td>blocks until a value arrives</td><td>buffered values, then zero value with <code>ok == false</code></td></tr>
+          <tr><td>close</td><td><b>panic</b></td><td>succeeds</td><td><b>panic</b></td></tr>
+        </tbody>
+      </table></div>
+      <p>A useful trick: set a channel variable to <code>nil</code> to disable its case in a <code>select</code>. Rule of thumb: only the sender closes, and only when there is exactly one sender (or a coordinator that knows every sender is done).</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r8-3" aria-label="Mark as known"><div>
+    <span class="q">When should you use a mutex instead of a channel in Go?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Use channels to <b>transfer ownership</b> of data or to coordinate stages (pipelines, fan-out and fan-in, signalling completion). Use a mutex to <b>protect shared state</b> that many goroutines read and update in place, like a cache or a counter. Forcing state through a channel owned by one goroutine works, but it's often slower and more code. “Share memory by communicating” is guidance, not a rule.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r8-4" aria-label="Mark as known"><div>
+    <span class="q">What is <code>context.Context</code> for, and what are the rules for using it?</span>
+    <details><summary>Model answer</summary><div>
+      <p>It carries cancellation, deadlines and request-scoped values across API boundaries and goroutines. Rules:</p>
+      <ul>
+        <li>Pass it as the first parameter.</li>
+        <li>Never store it in a struct.</li>
+        <li>Always call the <code>cancel</code> function you get back, usually with <code>defer</code>, or you leak timers.</li>
+        <li>Blocking operations should <code>select</code> on <code>ctx.Done()</code>.</li>
+        <li>Put only request-scoped data in values (a trace ID), never optional parameters.</li>
+      </ul>
+      <p>Cancellation flows down the tree: cancelling a parent cancels every child.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r8-5" aria-label="Mark as known"><div>
+    <span class="q">What do <code>sync.Once</code>, <code>sync.Pool</code> and <code>sync.Cond</code> do, and when would you avoid them?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>Once:</b> runs an initialiser exactly once; concurrent callers wait for it. Go 1.21 added <code>sync.OnceValue</code>.</li>
+        <li><b>Pool:</b> a cache of reusable temporary objects (buffers) that reduces GC pressure. Items can be dropped at any GC, so it's not a connection pool.</li>
+        <li><b>Cond:</b> a condition variable. It's rarely the right choice because it can't be combined with <code>select</code> or context cancellation; channels usually express the same thing better.</li>
+      </ul>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r8-6" aria-label="Mark as known"><div>
+    <span class="q">What causes goroutine leaks, and how do you find them?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A goroutine blocked forever: sending on a channel nobody reads (the classic timeout-then-return case), receiving on a channel nobody closes, or waiting on a mutex or WaitGroup that is never released. Find them by watching <code>runtime.NumGoroutine</code> in metrics, reading <code>/debug/pprof/goroutine?debug=2</code> grouped by stack, and running <code>go.uber.org/goleak</code> in tests. Prevent them by giving every goroutine a clear exit condition: a context, a closed channel, or a buffered result channel.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r8-7" aria-label="Mark as known"><div>
+    <span class="q">What does the Go memory model say about data races?</span>
+    <details><summary>Model answer</summary><div>
+      <p>Synchronisation (channel operations, mutexes, <code>sync/atomic</code>, <code>Once</code>, <code>WaitGroup</code>) creates happens-before edges. A send happens-before the matching receive completes, and closing a channel happens-before a receive that sees it closed. A program with a data race has no guarantees for the racing reads. Racy reads of multi-word values like strings, slices and interfaces can see torn values and crash. Run <code>go test -race</code> in CI.</p>
+    </div></details>
+  </div></div>
+</section>
+
+<!-- 9 -->
+<section class="rsec" id="r9">
+  <span class="eyebrow">Section 9</span>
+  <h2>Senior-level design questions</h2>
+
+  <div class="rq"><input type="checkbox" id="r9-1" aria-label="Mark as known"><div>
+    <span class="q">Optimistic vs pessimistic concurrency control: when do you choose each?</span>
+    <details><summary>Model answer</summary><div>
+      <p><b>Pessimistic:</b> lock before touching the data (<code>SELECT … FOR UPDATE</code>, a mutex). Best under high contention, where retries would be wasted work. <b>Optimistic:</b> read a version, do the work, then write only if the version is unchanged (a CAS, <code>UPDATE … WHERE version = ?</code>, an ETag with <code>If-Match</code>), and retry on conflict. Best when conflicts are rare and holding locks across slow operations or network calls is expensive.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r9-2" aria-label="Mark as known"><div>
+    <span class="q">Why are distributed locks dangerous, and what is a fencing token?</span>
+    <details><summary>Model answer</summary><div>
+      <p>A client can hold a lease-based lock, pause (a GC pause, a network delay), let the lease expire and then keep writing while another client also believes it holds the lock. A <b>fencing token</b> is a number that increases every time the lock is granted. The storage layer rejects writes carrying a token lower than the highest it has already seen, so the stale holder's writes fail. Without fencing, a lock only makes conflicts less likely; it doesn't guarantee safety.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r9-3" aria-label="Mark as known"><div>
+    <span class="q">What are the backpressure strategies when producers outpace consumers?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>Block the producer:</b> a bounded queue with <code>put</code>.</li>
+        <li><b>Reject quickly:</b> <code>offer</code> or <code>AbortPolicy</code>, then return HTTP 429 or 503.</li>
+        <li><b>Slow the caller:</b> <code>CallerRunsPolicy</code>.</li>
+        <li><b>Drop:</b> newest or oldest, which suits metrics and telemetry.</li>
+        <li><b>Buffer to disk:</b> for example Kafka.</li>
+        <li><b>Adapt:</b> shrink the concurrency limit using AIMD.</li>
+      </ul>
+      <p>The one wrong answer is an unbounded in-memory queue, which only postpones an out-of-memory failure and hides the latency until then.</p>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r9-4" aria-label="Mark as known"><div>
+    <span class="q">How do you test concurrent code?</span>
+    <details><summary>Model answer</summary><div>
+      <ul>
+        <li><b>Stress tests:</b> many threads, many iterations, and invariant checks (totals conserved, nothing lost or duplicated).</li>
+        <li><b>Start gates:</b> release all threads at once with a <code>CountDownLatch</code> to maximise overlap.</li>
+        <li><b>Deterministic interleavings:</b> force specific orders with latches or hooks in the code.</li>
+        <li><b>Specialised tools:</b> Java's <b>jcstress</b> for memory-model effects, <b>Lincheck</b> for linearizability, and Go's <code>-race</code> with <code>-count</code>.</li>
+        <li><b>Test the tests:</b> they must fail on a deliberately broken version.</li>
+      </ul>
+    </div></details>
+  </div></div>
+
+  <div class="rq"><input type="checkbox" id="r9-5" aria-label="Mark as known"><div>
+    <span class="q">A service hangs in production. Walk through how you'd diagnose it.</span>
+    <details><summary>Model answer</summary><div>
+      <ol>
+        <li>Check CPU. Near 0% suggests a deadlock or waiting on I/O; 100% suggests a hot loop or livelock.</li>
+        <li>Take 2–3 thread dumps (<code>jstack</code>, <code>jcmd Thread.print</code>) a few seconds apart. Look for “Found one Java-level deadlock”, many threads BLOCKED on one monitor, or threads WAITING on a pool, queue or connection pool.</li>
+        <li>For a lock, find which thread owns it and what that thread is doing.</li>
+        <li>Check pool metrics: active threads, queue depth, rejections.</li>
+        <li>In Go, use the goroutine profile from pprof, or <code>SIGQUIT</code> to dump every goroutine's stack.</li>
+        <li>Fix the cause (lock ordering, timeouts on every blocking call, separate pools per dependency), then add a metric or alert so the next time is caught early.</li>
+      </ol>
+    </div></details>
+  </div></div>
+</section>
+
+<footer class="stack-sm" style="border-top:1px solid var(--line); padding-top:24px">
+  <p class="src">Written for this course. Key references: <i>Java Concurrency in Practice</i> (Goetz et al.), JLS §17, the <code>java.util.concurrent</code> Javadoc, and “The Go Memory Model”.</p>
+  <nav class="sitenav" aria-label="Course pages"><a href="./">Course</a><a href="reading.html" aria-current="page">Reading questions</a><a href="practice.html">Practice problems</a></nav>
+</footer>
+
+</div>
+<script>
+(function () {
+  var KEY = "cc-reading-known";
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.rq input[type="checkbox"]'));
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
+  function paint() {
+    var n = 0;
+    boxes.forEach(function (b) { b.closest('.rq').classList.toggle('done', b.checked); if (b.checked) n++; });
+    document.getElementById('count').textContent = n + " / " + boxes.length + " known";
+    document.getElementById('bar').style.width = (boxes.length ? n / boxes.length * 100 : 0) + "%";
+  }
+  function save() {
+    var s = {};
+    boxes.forEach(function (b) { if (b.checked) s[b.id] = true; });
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+  }
+  boxes.forEach(function (b) { b.checked = !!saved[b.id]; b.addEventListener('change', function () { save(); paint(); }); });
+  function setAll(open) { document.querySelectorAll('.rq details').forEach(function (d) { d.open = open; }); }
+  document.getElementById('expand').addEventListener('click', function () { setAll(true); });
+  document.getElementById('collapse').addEventListener('click', function () { setAll(false); });
+  document.getElementById('reset').addEventListener('click', function () { boxes.forEach(function (b) { b.checked = false; }); save(); paint(); });
+  paint();
+})();
+</script>
+</body>
+</html>
