@@ -1,0 +1,1345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concurrency Round Playbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single reading column with a lane-style module index; each module is a "lane" like a worker thread, Java main track + Go side track */
+:root {
+  --bg: #F3F5F8;
+  --surface: #FFFFFF;
+  --fg: #151A24;
+  --muted: #5A6375;
+  --line: #D9DEE7;
+  --accent: #2553C9;
+  --accent-soft: #E3EAFB;
+  --go: #0B7A83;
+  --go-soft: #DDF1F2;
+  --warn: #B4610A;
+  --warn-soft: #FBEEDD;
+  --code-bg: #EDF0F5;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F131B; --surface: #161C27; --fg: #E6EAF2; --muted: #98A2B6; --line: #283143;
+    --accent: #7FA2FF; --accent-soft: #1C2742; --go: #4FC7CF; --go-soft: #12302F;
+    --warn: #F0A956; --warn-soft: #33261A; --code-bg: #1B2230; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F131B; --surface: #161C27; --fg: #E6EAF2; --muted: #98A2B6; --line: #283143;
+  --accent: #7FA2FF; --accent-soft: #1C2742; --go: #4FC7CF; --go-soft: #12302F;
+  --warn: #F0A956; --warn-soft: #33261A; --code-bg: #1B2230; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 880px; margin: 0 auto; padding-inline: 20px; padding-block: 48px 96px; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2.1rem, 5vw, 3.1rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font-family: var(--f-mono); font-size: 13px; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin: 0; overflow-x: auto; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.stack-sm { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.muted { color: var(--muted); }
+ul, ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; max-width: 70ch; }
+
+/* hero */
+.hero { display: flex; flex-direction: column; gap: 18px; }
+.hero p.lede { font-size: 1.12rem; color: var(--muted); }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-family: var(--f-mono); font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.chip.java { color: var(--accent); border-color: var(--accent); }
+.chip.go { color: var(--go); border-color: var(--go); }
+
+/* progress */
+.progress { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bar { flex: 1 1 220px; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar > span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.progress .count { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* diagram */
+.figure { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.figure svg { display: block; min-width: 680px; width: 100%; height: auto; }
+.figure .cap { font-size: 13px; color: var(--muted); margin-top: 8px; }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+svg .box-acc { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .box-warn { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.5; }
+svg .slot { fill: var(--accent); }
+svg .slot-empty { fill: var(--line); }
+svg .t { fill: var(--fg); font-family: var(--f-body); font-size: 13px; }
+svg .tb { fill: var(--fg); font-family: var(--f-display); font-weight: 700; font-size: 14px; }
+svg .tm { fill: var(--muted); font-family: var(--f-mono); font-size: 11px; }
+svg .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+svg .ah { fill: var(--muted); }
+
+/* steps */
+.steps { list-style: none; padding: 0; counter-reset: s; gap: 10px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+.steps li::before { content: counter(s); font-family: var(--f-mono); font-weight: 600; font-size: 13px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.steps li > div { min-width: 0; }
+
+.callout { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; }
+.callout strong { color: var(--warn); }
+
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.twocol > * { min-width: 0; }
+@media (max-width: 720px) { .twocol { grid-template-columns: 1fr; } }
+.lang { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+.lang.java { color: var(--accent); } .lang.go { color: var(--go); }
+
+/* modules */
+.toc { display: flex; flex-wrap: wrap; gap: 6px; }
+.toc a { font-family: var(--f-mono); font-size: 12px; text-decoration: none; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; }
+.toc a:hover, .toc a:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+.module { display: grid; grid-template-columns: 56px 1fr; gap: 18px; padding-top: 28px; border-top: 1px solid var(--line); }
+.module > .num { font-family: var(--f-display); font-weight: 800; font-size: 2rem; color: var(--accent); line-height: 1; }
+.module > .body { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 560px) { .module { grid-template-columns: 1fr; gap: 6px; } }
+.track { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.track.go { border-color: color-mix(in srgb, var(--go) 45%, var(--line)); background: color-mix(in srgb, var(--go-soft) 55%, var(--surface)); }
+.task { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+.task input { width: 17px; height: 17px; margin-top: 4px; accent-color: var(--accent); cursor: pointer; }
+.track.go .task input { accent-color: var(--go); }
+.task label { cursor: pointer; }
+.task .accept { display: block; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.task.done label > b { text-decoration: line-through; text-decoration-color: var(--muted); }
+.read { font-size: 14px; color: var(--muted); }
+.read b { color: var(--fg); font-weight: 600; }
+
+.qa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+.qa > div { min-width: 0; font-size: 14.5px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+@media (max-width: 720px) { .qa { grid-template-columns: 1fr; } }
+
+/* question bank */
+.qtype { display: flex; flex-direction: column; gap: 14px; padding-top: 28px; border-top: 1px solid var(--line); }
+.qhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.tag { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 4px; }
+.prompt { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.prompt .lbl { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+details.sol { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+details.sol > summary { cursor: pointer; padding: 10px 16px; font-weight: 600; font-size: 14.5px; color: var(--accent); list-style: none; }
+details.sol > summary::-webkit-details-marker { display: none; }
+details.sol > summary::before { content: "▸ "; }
+details.sol[open] > summary::before { content: "▾ "; }
+details.sol > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
+details.sol > .inner { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.practice { list-style: none; padding: 0; gap: 8px; max-width: none; }
+.practice li { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.practice li > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.lvl { font-family: var(--f-mono); font-size: 11px; font-weight: 600; text-align: center; padding: 2px 0; border-radius: 4px; margin-top: 3px; }
+.lvl.m { color: var(--go); background: var(--go-soft); }
+.lvl.h { color: var(--warn); background: var(--warn-soft); }
+.lvl.e { color: var(--accent); background: var(--accent-soft); }
+.practice details summary { cursor: pointer; font-size: 13.5px; color: var(--muted); }
+.practice details p { font-size: 13.5px; color: var(--muted); margin-top: 4px; }
+.bug { display: flex; flex-direction: column; gap: 8px; }
+
+button.reset { font: inherit; font-size: 13px; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+button.reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">Senior SWE · Concurrency round · Rubrik / Atlassian</span>
+  <h1>Concurrency Round Playbook</h1>
+  <p class="lede">Eight modules, built around the thread pool. Java is the main track. Go runs alongside as a side track so you learn the same ideas through a different model: shared memory and locks versus goroutines and channels.</p>
+  <div class="meta-row">
+    <span class="chip java">Java 21</span><span class="chip go">Go 1.22+</span><span class="chip">~5–6 weeks at 1–2 h/day</span><span class="chip">every exercise is reviewable</span>
+  </div>
+  <div class="progress">
+    <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+    <span class="count" id="count">0 / 0 done</span>
+    <button class="reset" id="reset" type="button">Clear checks</button>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#pool">Thread pool, explained</a>
+    <a href="#m1">1 · Memory model</a><a href="#m2">2 · Locks</a><a href="#m3">3 · Build a pool</a>
+    <a href="#m4">4 · Futures</a><a href="#m5">5 · Coordination</a><a href="#m6">6 · Scheduling</a>
+    <a href="#m7">7 · Concurrent structures</a><a href="#m8">8 · Interview LLD</a>
+    <a href="#bank">Question bank</a><a href="#eval">Getting evaluated</a><a href="#qa">Rapid-fire</a>
+  </nav>
+</header>
+
+<!-- ============ THREAD POOL ============ -->
+<section id="pool" class="stack">
+  <span class="eyebrow">Start here</span>
+  <h2>How a thread pool works</h2>
+  <p>Creating an OS thread costs roughly 0.5–1 MB of stack and a syscall. If every request spawned one, a traffic spike would exhaust memory and the CPU would spend its time context-switching. A thread pool fixes this by keeping a <b>fixed set of long-lived worker threads</b> and a <b>queue of tasks</b>. Callers submit tasks. Workers loop forever: take a task, run it, take the next. It gives you three things: thread reuse, a bound on concurrency, and a place to apply backpressure when the system is overloaded.</p>
+
+  <div class="figure">
+    <svg viewBox="0 0 760 270" role="img" aria-label="Producers submit tasks to a bounded queue; worker threads take tasks and complete futures; overflow goes to a rejection handler">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <!-- producers -->
+      <rect class="box" x="10" y="40" width="120" height="40" rx="6"/><text class="t" x="70" y="65" text-anchor="middle">HTTP thread</text>
+      <rect class="box" x="10" y="95" width="120" height="40" rx="6"/><text class="t" x="70" y="120" text-anchor="middle">Kafka consumer</text>
+      <rect class="box" x="10" y="150" width="120" height="40" rx="6"/><text class="t" x="70" y="175" text-anchor="middle">Scheduler</text>
+      <text class="tm" x="70" y="25" text-anchor="middle">PRODUCERS</text>
+      <path class="arrow" d="M130 60 C170 60,170 115,205 115" marker-end="url(#ah)"/>
+      <path class="arrow" d="M130 115 L205 115" marker-end="url(#ah)"/>
+      <path class="arrow" d="M130 170 C170 170,170 115,205 115" marker-end="url(#ah)"/>
+      <text class="tm" x="168" y="100" text-anchor="middle">execute()</text>
+      <!-- queue -->
+      <rect class="box-acc" x="210" y="90" width="210" height="50" rx="6"/>
+      <rect class="slot" x="222" y="102" width="22" height="26" rx="3"/><rect class="slot" x="250" y="102" width="22" height="26" rx="3"/><rect class="slot" x="278" y="102" width="22" height="26" rx="3"/><rect class="slot" x="306" y="102" width="22" height="26" rx="3"/>
+      <rect class="slot-empty" x="334" y="102" width="22" height="26" rx="3"/><rect class="slot-empty" x="362" y="102" width="22" height="26" rx="3"/><rect class="slot-empty" x="390" y="102" width="22" height="26" rx="3"/>
+      <text class="tm" x="315" y="82" text-anchor="middle">BlockingQueue (capacity 7)</text>
+      <!-- reject -->
+      <path class="arrow" d="M315 140 L315 205" marker-end="url(#ah)"/>
+      <text class="tm" x="322" y="178">full + max threads</text>
+      <rect class="box-warn" x="240" y="210" width="150" height="40" rx="6"/><text class="t" x="315" y="235" text-anchor="middle">RejectionHandler</text>
+      <!-- workers -->
+      <text class="tm" x="545" y="25" text-anchor="middle">WORKERS  take() → run() → loop</text>
+      <path class="arrow" d="M420 115 C455 115,455 60,485 60" marker-end="url(#ah)"/>
+      <path class="arrow" d="M420 115 L485 115" marker-end="url(#ah)"/>
+      <path class="arrow" d="M420 115 C455 115,455 170,485 170" marker-end="url(#ah)"/>
+      <rect class="box" x="490" y="40" width="120" height="40" rx="6"/><text class="t" x="550" y="65" text-anchor="middle">worker-1</text>
+      <rect class="box" x="490" y="95" width="120" height="40" rx="6"/><text class="t" x="550" y="120" text-anchor="middle">worker-2</text>
+      <rect class="box" x="490" y="150" width="120" height="40" rx="6"/><text class="t" x="550" y="175" text-anchor="middle">worker-3</text>
+      <!-- futures -->
+      <path class="arrow" d="M610 115 L655 115" marker-end="url(#ah)"/>
+      <rect class="box" x="660" y="90" width="90" height="50" rx="6"/><text class="tb" x="705" y="112" text-anchor="middle">Future</text><text class="tm" x="705" y="128" text-anchor="middle">get()</text>
+    </svg>
+    <p class="cap">Producers never run the work themselves. The queue decouples submission from execution, and its capacity is your backpressure knob.</p>
+  </div>
+
+  <h3>What <code>ThreadPoolExecutor.execute()</code> actually does</h3>
+  <p>Interviewers love this because most people get it wrong. The order is <b>core threads, then queue, then extra threads, then reject</b>. Not “grow to max first”.</p>
+  <ol class="steps">
+    <li><div>If fewer than <code>corePoolSize</code> workers are running, start a new worker with this task as its first task. This happens even if other workers are idle.</div></li>
+    <li><div>Otherwise, <code>workQueue.offer(task)</code>. If it succeeds, re-check the pool state. If the pool was shut down in between, remove the task and reject it. If zero workers are alive, start one.</div></li>
+    <li><div>If the queue is full and fewer than <code>maximumPoolSize</code> workers exist, start a non-core worker for this task.</div></li>
+    <li><div>Otherwise call the <code>RejectedExecutionHandler</code>: <code>AbortPolicy</code> (throw, the default), <code>CallerRunsPolicy</code> (the submitting thread runs it, which slows producers down as natural backpressure), <code>DiscardPolicy</code>, or <code>DiscardOldestPolicy</code>.</div></li>
+  </ol>
+  <p>Each worker runs <code>runWorker()</code>: loop on <code>getTask()</code>, which calls <code>queue.take()</code> for core workers and <code>queue.poll(keepAliveTime)</code> for non-core ones. A non-core worker that times out returns <code>null</code> and exits, so the pool shrinks back to core size. Pool state and worker count are packed into one <code>AtomicInteger ctl</code>: the top 3 bits hold the run state (RUNNING, SHUTDOWN, STOP, TIDYING, TERMINATED) and the low 29 bits hold the count, so both can be updated with a single CAS.</p>
+
+  <div class="callout"><strong>The classic trap.</strong> With an unbounded <code>LinkedBlockingQueue</code>, step 2 never fails, so the pool never grows past <code>corePoolSize</code> and <code>maximumPoolSize</code> is ignored. That is exactly what <code>Executors.newFixedThreadPool</code> gives you, and a slow downstream turns it into an OutOfMemoryError. <code>newCachedThreadPool</code> has the opposite problem: a <code>SynchronousQueue</code> and unbounded max threads. In production, build the <code>ThreadPoolExecutor</code> yourself with a bounded queue and a named <code>ThreadFactory</code>.</div>
+
+  <h3>Shutdown semantics</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Call</th><th>New tasks</th><th>Queued tasks</th><th>Running tasks</th></tr></thead>
+    <tbody>
+      <tr><td><code>shutdown()</code></td><td>Rejected</td><td>Still run</td><td>Finish normally</td></tr>
+      <tr><td><code>shutdownNow()</code></td><td>Rejected</td><td>Drained and returned as a list</td><td>Interrupted (they must respond to the interrupt)</td></tr>
+      <tr><td><code>awaitTermination(t)</code></td><td colspan="3">Blocks until TERMINATED or timeout. The standard pattern: <code>shutdown()</code>, await, then <code>shutdownNow()</code> on timeout.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Sizing</h3>
+  <p>From <i>Java Concurrency in Practice</i>: <code>threads = Ncpu × Ucpu × (1 + W/C)</code>, where W/C is the ratio of wait time to compute time. CPU-bound work: about <code>Ncpu + 1</code>. A task that waits 90 ms on I/O for every 10 ms of CPU on an 8-core box: 8 × (1 + 9) = 80 threads. Then measure, because the downstream (a DB connection pool of 20) is often the real limit.</p>
+
+  <h3>Pitfalls to name in an interview</h3>
+  <ul>
+    <li><b>Swallowed exceptions.</b> <code>submit()</code> stores the exception in the Future. If nobody calls <code>get()</code>, it disappears. <code>execute()</code> lets it reach the thread's UncaughtExceptionHandler and kills that worker, which is then replaced.</li>
+    <li><b>Pool-induced deadlock.</b> A task in a bounded pool submits a subtask to the same pool and blocks on it. When every worker does this, nobody is left to run the subtasks.</li>
+    <li><b>ThreadLocal leaks.</b> Workers live forever, so a ThreadLocal set by one task is still there for the next. Always clear in <code>finally</code>.</li>
+    <li><b>Virtual threads (Java 21).</b> Don't pool them. Use <code>Executors.newVirtualThreadPerTaskExecutor()</code> and limit concurrency with a <code>Semaphore</code>. Watch for pinning inside <code>synchronized</code> blocks on JDK 21–23.</li>
+  </ul>
+
+  <div class="twocol">
+    <div class="stack-sm">
+      <span class="lang java">Java · minimal pool</span>
+<pre><code>public final class SimplePool {
+  private final BlockingQueue&lt;Runnable&gt; queue;
+  private final List&lt;Thread&gt; workers = new ArrayList&lt;&gt;();
+  private volatile boolean shutdown;
+
+  public SimplePool(int n, int capacity) {
+    queue = new ArrayBlockingQueue&lt;&gt;(capacity);
+    for (int i = 0; i &lt; n; i++) {
+      Thread t = new Thread(this::loop, "worker-" + i);
+      workers.add(t);
+      t.start();
+    }
+  }
+
+  public void execute(Runnable r) {
+    if (shutdown) throw new RejectedExecutionException();
+    if (!queue.offer(r)) throw new RejectedExecutionException("full");
+  }
+
+  private void loop() {
+    try {
+      while (!shutdown || !queue.isEmpty()) {
+        Runnable r = queue.poll(100, TimeUnit.MILLISECONDS);
+        if (r == null) continue;
+        try { r.run(); }
+        catch (Throwable t) { /* log, keep worker alive */ }
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  public void shutdown() { shutdown = true; }
+  public void shutdownNow() {
+    shutdown = true;
+    workers.forEach(Thread::interrupt);
+  }
+}</code></pre>
+      <p class="muted" style="font-size:14px">This has a real race between the <code>shutdown</code> check in <code>execute()</code> and the <code>isEmpty()</code> check in <code>loop()</code>: a task can be accepted after every worker has exited. Finding and fixing it is part of Module 3.</p>
+    </div>
+    <div class="stack-sm">
+      <span class="lang go">Go · worker pool</span>
+<pre><code>func Pool(ctx context.Context, n int,
+    jobs &lt;-chan Job) &lt;-chan Result {
+
+  out := make(chan Result)
+  var wg sync.WaitGroup
+  for i := 0; i &lt; n; i++ {
+    wg.Add(1)
+    go func() {
+      defer wg.Done()
+      for {
+        select {
+        case &lt;-ctx.Done():
+          return
+        case j, ok := &lt;-jobs:
+          if !ok {
+            return // producer closed jobs
+          }
+          select {
+          case out &lt;- process(j):
+          case &lt;-ctx.Done():
+            return
+          }
+        }
+      }
+    }()
+  }
+  go func() { wg.Wait(); close(out) }()
+  return out
+}</code></pre>
+      <p class="muted" style="font-size:14px">Goroutines start at about 2 KB and are scheduled onto OS threads by the runtime (the M:N “GMP” scheduler), so Go doesn't need a pool for reuse. You use one to <b>bound</b> concurrency against a limited resource. Closing <code>jobs</code> is the equivalent of <code>shutdown()</code>, and cancelling <code>ctx</code> is <code>shutdownNow()</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MODULES ============ -->
+<section class="stack" aria-labelledby="mods">
+  <span class="eyebrow">Coursework</span>
+  <h2 id="mods">Modules</h2>
+  <p class="muted">Work through them in order; each one uses the previous. For every Java task, write a JUnit 5 test that runs it with 50+ threads in a loop of 1,000 iterations. For every Go task, run <code>go test -race -count=100</code>.</p>
+</section>
+
+<article class="module" id="m1">
+  <div class="num">1</div>
+  <div class="body">
+    <h3>Java Memory Model and visibility</h3>
+    <p class="read"><b>Read:</b> <i>Java Concurrency in Practice</i> ch. 1–3 and 16 · JLS §17.4 (happens-before) · Aleksey Shipilëv, “Java Memory Model Pragmatics” · Go: “The Go Memory Model” (go.dev/ref/mem)</p>
+    <p>Concepts: atomicity vs visibility vs ordering, happens-before edges (monitor unlock → lock, volatile write → read, <code>Thread.start</code>, <code>join</code>), CAS, false sharing, safe publication.</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t1a"><label for="t1a"><b>Counter four ways.</b> Unsafe <code>int</code>, <code>synchronized</code>, <code>AtomicLong</code>, <code>LongAdder</code>. Show the unsafe one losing updates, then benchmark the rest under 2/8/32 threads with JMH.<span class="accept">Pass: a test that fails reliably on the unsafe version; a short note on why LongAdder wins under contention.</span></label></div>
+      <div class="task"><input type="checkbox" id="t1b"><label for="t1b"><b>Broken singleton.</b> Write double-checked locking without <code>volatile</code> and explain the partially-constructed-object bug. Fix it three ways (volatile, holder idiom, enum).<span class="accept">Pass: you can explain which happens-before edge each fix adds.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g1a"><label for="g1a"><b>Race detector drill.</b> Write a racy map counter, catch it with <code>-race</code>, fix with <code>sync.Mutex</code>, then with <code>atomic.Int64</code>, then with a single owner goroutine and a channel.<span class="accept">Pass: all three clean under <code>-race -count=100</code>, plus a benchmark comparing them.</span></label></div>
+    </div>
+  </div>
+</article>
+
+<article class="module" id="m2">
+  <div class="num">2</div>
+  <div class="body">
+    <h3>Locks, conditions, and the bounded buffer</h3>
+    <p class="read"><b>Read:</b> JCIP ch. 13–14 · <code>ReentrantLock</code>, <code>Condition</code>, <code>ReentrantReadWriteLock</code>, <code>StampedLock</code> Javadoc · Go: <code>sync.Cond</code>, <code>sync.RWMutex</code> docs</p>
+    <p>Concepts: intrinsic vs explicit locks, fairness, spurious wakeups (always wait in a <code>while</code> loop), <code>signal</code> vs <code>signalAll</code>, lock ordering to avoid deadlock, <code>tryLock</code> with timeout.</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t2a"><label for="t2a"><b>BoundedBlockingQueue.</b> <code>put</code>, <code>take</code>, <code>offer(e, timeout)</code>, <code>poll(timeout)</code>. Version 1 with <code>wait/notifyAll</code>, version 2 with one lock and two Conditions (<code>notFull</code>, <code>notEmpty</code>).<span class="accept">Pass: no lost elements across 8 producers and 8 consumers with 1M items; timeouts honoured within 10 ms; interruptible.</span></label></div>
+      <div class="task"><input type="checkbox" id="t2b"><label for="t2b"><b>Your own ReadWriteLock.</b> Writer-preferring, so readers can't starve writers. Then make it reentrant for readers.<span class="accept">Pass: a test proving a waiting writer blocks new readers.</span></label></div>
+      <div class="task"><input type="checkbox" id="t2c"><label for="t2c"><b>Bank transfer deadlock.</b> <code>transfer(a, b, amt)</code> with per-account locks. Reproduce the deadlock, then fix by ordering locks by account id.<span class="accept">Pass: total balance is invariant after 100k random concurrent transfers.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g2a"><label for="g2a"><b>Bounded queue two ways.</b> A buffered channel wrapper, then a <code>sync.Mutex</code> + <code>sync.Cond</code> version. Add a context-aware <code>Put(ctx, v)</code>.<span class="accept">Pass: explain why <code>sync.Cond</code> can't be combined with <code>select</code>, and what you did about cancellation.</span></label></div>
+    </div>
+  </div>
+</article>
+
+<article class="module" id="m3">
+  <div class="num">3</div>
+  <div class="body">
+    <h3>Build a thread pool from scratch</h3>
+    <p class="read"><b>Read:</b> JCIP ch. 6–8 · the source of <code>java.util.concurrent.ThreadPoolExecutor</code> (read <code>execute</code>, <code>addWorker</code>, <code>runWorker</code>, <code>getTask</code>, <code>tryTerminate</code>) · Go: “Go Concurrency Patterns: Pipelines and cancellation” (go.dev/blog/pipelines)</p>
+    <p>This is the module most likely to show up directly in a round. Do it without looking at the JDK source first, then compare.</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t3a"><label for="t3a"><b>MyExecutorService.</b> Fixed core size, bounded queue from Module 2, <code>execute</code>, <code>submit</code> returning your own <code>MyFuture</code> (<code>get</code>, <code>get(timeout)</code>, <code>cancel</code>, <code>isDone</code>), pluggable rejection policy, <code>shutdown</code>, <code>shutdownNow</code>, <code>awaitTermination</code>.<span class="accept">Pass: no task accepted after shutdown is lost; <code>awaitTermination</code> returns true only when every worker has exited; exceptions reach <code>get()</code> as ExecutionException.</span></label></div>
+      <div class="task"><input type="checkbox" id="t3b"><label for="t3b"><b>Elastic sizing.</b> Add <code>maxPoolSize</code> and <code>keepAlive</code> with the real core → queue → max → reject order. Idle non-core workers must exit.<span class="accept">Pass: a test that saturates the pool, checks the thread count reaches max, waits past keepAlive, and checks it falls back to core.</span></label></div>
+      <div class="task"><input type="checkbox" id="t3c"><label for="t3c"><b>Fix the SimplePool race</b> shown above, and write the test that exposed it.<span class="accept">Pass: a failing test before your fix and a passing one after.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g3a"><label for="g3a"><b>Pool type.</b> <code>NewPool(n, queueSize)</code> with <code>Submit(ctx, func() error) error</code>, <code>Shutdown(ctx)</code> (graceful drain with deadline) and a results/error channel. No goroutine leaks.<span class="accept">Pass: <code>go.uber.org/goleak</code> in tests reports nothing; submit after shutdown returns an error instead of panicking on a closed channel.</span></label></div>
+    </div>
+  </div>
+</article>
+
+<article class="module" id="m4">
+  <div class="num">4</div>
+  <div class="body">
+    <h3>Futures and async composition</h3>
+    <p class="read"><b>Read:</b> <code>CompletableFuture</code> Javadoc (the <code>*Async</code> variants and which executor they use) · JEP 453 Structured Concurrency · Go: <code>golang.org/x/sync/errgroup</code>, <code>context</code> package docs</p>
+    <p>Concepts: <code>thenApply</code> vs <code>thenCompose</code>, <code>allOf</code>/<code>anyOf</code>, <code>orTimeout</code>, <code>exceptionally</code> vs <code>handle</code>, why the common ForkJoinPool is a bad default for blocking I/O.</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t4a"><label for="t4a"><b>Fan-out aggregator.</b> Call 5 simulated services (random 50–500 ms latency, 10% failure). Return within 300 ms with whatever succeeded, and a default for the rest. Use a dedicated executor.<span class="accept">Pass: p99 total latency under 320 ms over 1,000 runs; no threads left running after timeout.</span></label></div>
+      <div class="task"><input type="checkbox" id="t4b"><label for="t4b"><b>Parallel merge sort with ForkJoin.</b> <code>RecursiveTask</code> with a sequential threshold. Measure speedup vs threshold size.<span class="accept">Pass: a short table of timings and the threshold you chose.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g4a"><label for="g4a"><b>Same aggregator in Go.</b> <code>context.WithTimeout</code> + goroutines, then rewrite with <code>errgroup.WithContext</code> and <code>SetLimit(3)</code>.<span class="accept">Pass: you can explain when errgroup cancelling on first error is and isn't what you want.</span></label></div>
+    </div>
+  </div>
+</article>
+
+<article class="module" id="m5">
+  <div class="num">5</div>
+  <div class="body">
+    <h3>Coordination primitives and the classic puzzles</h3>
+    <p class="read"><b>Read:</b> <code>CountDownLatch</code>, <code>CyclicBarrier</code>, <code>Semaphore</code>, <code>Phaser</code>, <code>Exchanger</code> Javadoc · Allen Downey, <i>The Little Book of Semaphores</i> (free PDF)</p>
+    <p>These are short and are often used as a 20-minute warm-up before the main problem.</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t5a"><label for="t5a"><b>LeetCode concurrency set.</b> 1114 Print in Order, 1115 FooBar, 1116 Zero-Even-Odd, 1117 H2O, 1195 FizzBuzz Multithreaded, 1226 Dining Philosophers. Solve each with two different primitives.<span class="accept">Pass: accepted on LeetCode, and you can say which primitive fits best and why.</span></label></div>
+      <div class="task"><input type="checkbox" id="t5b"><label for="t5b"><b>Connection pool.</b> Fixed N connections, <code>acquire(timeout)</code> / <code>release</code>, using a <code>Semaphore</code> plus a concurrent deque. Detect double-release.<span class="accept">Pass: never more than N outstanding under 100 threads.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g5a"><label for="g5a"><b>Same puzzles in Go.</b> Do 1115, 1116 and 1226 with channels only, then 1117 with <code>golang.org/x/sync/semaphore</code>.<span class="accept">Pass: clean under <code>-race</code>.</span></label></div>
+    </div>
+  </div>
+</article>
+
+<article class="module" id="m6">
+  <div class="num">6</div>
+  <div class="body">
+    <h3>Scheduling and rate limiting</h3>
+    <p class="read"><b>Read:</b> <code>ScheduledThreadPoolExecutor</code> and <code>DelayQueue</code> source · Stripe engineering blog on rate limiters · Go: <code>golang.org/x/time/rate</code> source (it is short)</p>
+    <p>Delayed schedulers and rate limiters come up often in systems-heavy rounds because they combine a data structure, a condition variable and time.</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t6a"><label for="t6a"><b>Delayed task scheduler.</b> <code>schedule(task, delay)</code>, <code>scheduleAtFixedRate</code>, <code>cancel</code>. One dispatcher thread, a <code>PriorityQueue</code> ordered by run time, and <code>Condition.awaitNanos</code>; hand work off to a worker pool. A newly scheduled earlier task must wake the dispatcher.<span class="accept">Pass: tasks fire within 5 ms of their time; cancel works before and during execution; no busy-waiting (CPU near 0 when idle).</span></label></div>
+      <div class="task"><input type="checkbox" id="t6b"><label for="t6b"><b>Rate limiters.</b> Token bucket (lazy refill, no background thread) and sliding-window log, both thread-safe. Then a per-user limiter keyed in a <code>ConcurrentHashMap</code> with eviction of idle users.<span class="accept">Pass: exactly the allowed number of permits granted under 64 concurrent callers; explain CAS loop vs lock choice.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g6a"><label for="g6a"><b>Scheduler with <code>container/heap</code></b> and a single <code>time.Timer</code> that you <code>Reset</code> when the head changes. Then a token bucket and compare it with <code>x/time/rate</code>.<span class="accept">Pass: correct Timer stop/drain handling (check the Go 1.23 timer changes).</span></label></div>
+    </div>
+  </div>
+</article>
+
+<article class="module" id="m7">
+  <div class="num">7</div>
+  <div class="body">
+    <h3>Concurrent data structures</h3>
+    <p class="read"><b>Read:</b> <code>ConcurrentHashMap</code> Java 8+ internals (CAS on empty bins, <code>synchronized</code> on bin head, cooperative resize) · <code>CopyOnWriteArrayList</code> · <i>The Art of Multiprocessor Programming</i> ch. 9–10 · Go: <code>sync.Map</code> docs and when not to use it</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t7a"><label for="t7a"><b>Thread-safe LRU cache with TTL.</b> Start with one lock, then shard into N stripes. Add <code>computeIfAbsent</code> semantics so concurrent misses for the same key load it only once.<span class="accept">Pass: a test with 100 threads missing the same key proves exactly one load; throughput numbers for 1 vs 16 stripes.</span></label></div>
+      <div class="task"><input type="checkbox" id="t7b"><label for="t7b"><b>Lock-free stack (Treiber).</b> Then explain the ABA problem and fix it with <code>AtomicStampedReference</code>.<span class="accept">Pass: you can draw the ABA interleaving on a whiteboard.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g7a"><label for="g7a"><b>Sharded map + singleflight.</b> A 32-shard map with <code>RWMutex</code> per shard and <code>golang.org/x/sync/singleflight</code> for loads.<span class="accept">Pass: benchmarks against <code>sync.Map</code> for read-heavy and write-heavy workloads.</span></label></div>
+    </div>
+  </div>
+</article>
+
+<article class="module" id="m8">
+  <div class="num">8</div>
+  <div class="body">
+    <h3>Interview-style design with concurrency</h3>
+    <p>45–60 minute problems where you design classes, then make them thread-safe and talk through trade-offs. Time-box each one; practise saying your locking strategy out loud before coding.</p>
+    <div class="track">
+      <span class="lang java">Java track</span>
+      <div class="task"><input type="checkbox" id="t8a"><label for="t8a"><b>Multithreaded web crawler</b> (LeetCode 1242). Bounded pool, concurrent visited set, termination detection when the frontier is empty and no worker is busy.<span class="accept">Pass: terminates correctly without sleeping or polling.</span></label></div>
+      <div class="task"><input type="checkbox" id="t8b"><label for="t8b"><b>In-memory pub/sub broker.</b> Topics, multiple subscribers, per-subscriber ordering, slow-consumer handling (bounded buffer + drop or block policy), at-least-once with acks.<span class="accept">Pass: one slow subscriber cannot stall the others.</span></label></div>
+      <div class="task"><input type="checkbox" id="t8c"><label for="t8c"><b>Job scheduler with dependencies.</b> A DAG of jobs; run each when all its parents finish, with max parallelism K; fail fast and cancel descendants on error.<span class="accept">Pass: correct order on random DAGs, and cycles detected up front.</span></label></div>
+      <div class="task"><input type="checkbox" id="t8d"><label for="t8d"><b>Key-value store with snapshots.</b> <code>get/put/delete</code>, <code>snapshot()</code> returning a consistent read-only view while writes continue (copy-on-write or versioned values).<span class="accept">Pass: a snapshot never sees a partial write.</span></label></div>
+    </div>
+    <div class="track go">
+      <span class="lang go">Go side track</span>
+      <div class="task"><input type="checkbox" id="g8a"><label for="g8a"><b>Crawler and pub/sub in Go.</b> Rebuild 8a and 8b with goroutines, channels and context; compare the line count and where each language made termination easier or harder.<span class="accept">Pass: goleak clean, <code>-race</code> clean.</span></label></div>
+    </div>
+  </div>
+</article>
+
+<!-- ============ QUESTION BANK ============ -->
+<section id="bank" class="stack">
+  <span class="eyebrow">Question bank</span>
+  <h2>Question types, worked solutions, and practice</h2>
+  <p>Almost every concurrency question falls into one of eight types. Learn to recognise the type in the first two minutes, because the type tells you which primitive to reach for. Each type below has one worked problem (try it before opening the solution) and a set of practice problems with hints.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Type</th><th>What it tests</th><th>Java tools</th><th>Go tools</th></tr></thead>
+    <tbody>
+      <tr><td>A · Ordering and signalling</td><td>Making threads take turns</td><td>Semaphore, Condition</td><td>unbuffered channels</td></tr>
+      <tr><td>B · Producer–consumer</td><td>Blocking, backpressure, wakeups</td><td>Lock + 2 Conditions</td><td>buffered channel, select</td></tr>
+      <tr><td>C · Rate and resource limiting</td><td>Time-based state under contention</td><td>synchronized, CAS, Semaphore</td><td>Mutex, x/time/rate</td></tr>
+      <tr><td>D · Build a primitive</td><td>Monitor discipline, fairness, interrupts</td><td>wait/notifyAll, AQS</td><td>Mutex + Cond, channels</td></tr>
+      <tr><td>E · Scheduling and time</td><td>Timed waits that can be woken early</td><td>PriorityQueue + awaitNanos</td><td>container/heap + Timer</td></tr>
+      <tr><td>F · Parallel work and termination</td><td>Knowing when dynamic work is finished</td><td>pending counter, Phaser, ForkJoin</td><td>WaitGroup, errgroup</td></tr>
+      <tr><td>G · Concurrent caches and maps</td><td>Check-then-act, load-once, striping</td><td>ConcurrentHashMap, Future</td><td>sharded map, singleflight</td></tr>
+      <tr><td>H · Spot the bug</td><td>Reading code for races and leaks</td><td colspan="2">Knowing the failure modes</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- A -->
+<section class="qtype" id="qa-a">
+  <div class="qhead"><span class="tag">Type A</span><h3>Ordering and signalling</h3></div>
+  <div class="prompt"><span class="lbl">Worked problem</span><p><b>N threads, round robin.</b> Start N threads. Together they print 1 to MAX, where thread <code>i</code> prints the numbers with <code>(n − 1) % N == i</code>, strictly in order. Every thread must exit when printing is finished.</p></div>
+  <details class="sol"><summary>Show solution</summary><div class="inner">
+    <p>Use one lock and <b>one Condition per thread</b>, so each print wakes exactly the thread whose turn is next (no thundering herd). Termination is the part people miss: when <code>next &gt; MAX</code>, each exiting thread wakes its successor, so the wakeups travel around the ring until every thread has left.</p>
+    <span class="lang java">Java</span>
+<pre><code>class RoundRobinPrinter {
+  private final int n, max;
+  private int next = 1;                       // guarded by lock
+  private final ReentrantLock lock = new ReentrantLock();
+  private final Condition[] turn;
+
+  RoundRobinPrinter(int n, int max) {
+    this.n = n; this.max = max;
+    turn = new Condition[n];
+    for (int i = 0; i &lt; n; i++) turn[i] = lock.newCondition();
+  }
+
+  void run(int id) {
+    lock.lock();
+    try {
+      while (true) {
+        while (next &lt;= max &amp;&amp; (next - 1) % n != id) turn[id].await();
+        if (next &gt; max) {                     // done: pass the wakeup on
+          turn[(id + 1) % n].signal();
+          return;
+        }
+        System.out.println("T" + id + " -&gt; " + next);
+        next++;
+        turn[(next - 1) % n].signal();        // wake only the next owner
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } finally {
+      lock.unlock();
+    }
+  }
+}
+// for (int i = 0; i &lt; n; i++) { int id = i; new Thread(() -&gt; p.run(id)).start(); }</code></pre>
+    <span class="lang go">Go</span>
+<pre><code>func RoundRobin(n, max int) {
+  chans := make([]chan int, n)
+  for i := range chans {
+    chans[i] = make(chan int, 1) // buffer 1 so n == 1 can't self-deadlock
+  }
+  var wg sync.WaitGroup
+  for i := 0; i &lt; n; i++ {
+    wg.Add(1)
+    go func(id int) {
+      defer wg.Done()
+      next := chans[(id+1)%n]
+      defer close(next) // each goroutine closes its successor exactly once
+      for v := range chans[id] {
+        if v &gt; max {
+          return
+        }
+        fmt.Printf("G%d -&gt; %d\n", id, v)
+        next &lt;- v + 1
+      }
+    }(i)
+  }
+  chans[0] &lt;- 1
+  wg.Wait()
+}</code></pre>
+    <p class="muted">What to say in the interview: the <code>while</code> guards against spurious wakeups; per-thread Conditions make it O(1) wakeups per print instead of N; the close chain in Go is the channel version of “pass the wakeup on”.</p>
+  </div></details>
+  <span class="lbl eyebrow">Practice</span>
+  <ol class="practice">
+    <li><span class="lvl e">EASY</span><div><b>Print in Order (LC 1114)</b> with two <code>CountDownLatch</code>es, then with <code>volatile</code> flags only. <details><summary>Hint</summary><p>Latch 1 opens after first(), latch 2 after second(). With flags, discuss why a busy-spin is correct but wasteful.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Zero-Even-Odd (LC 1116).</b> Output <code>0102030405…</code> from three threads. <details><summary>Hint</summary><p>Three semaphores: zero starts at 1, odd and even at 0. The zero thread decides which one to release based on i.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Building H2O (LC 1117).</b> Molecules must leave in groups of exactly 2 H and 1 O. <details><summary>Hint</summary><p><code>Semaphore h = 2, o = 1</code> plus a <code>CyclicBarrier(3)</code>. Release the semaphores in the barrier action.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Traffic light intersection (LC 1279)</b> and then a version with two lanes per road and fairness so neither road waits more than K cars. <details><summary>Hint</summary><p>One lock and a “current green road” field is enough for the base version. For fairness, count cars passed since the last switch.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- B -->
+<section class="qtype" id="qa-b">
+  <div class="qhead"><span class="tag">Type B</span><h3>Producer–consumer</h3></div>
+  <div class="prompt"><span class="lbl">Worked problem</span><p><b>Bounded blocking queue (LC 1188).</b> Implement <code>put</code> (blocks when full), <code>take</code> (blocks when empty), <code>poll(timeout)</code>, and <code>size</code>. It must be interruptible.</p></div>
+  <details class="sol"><summary>Show solution</summary><div class="inner">
+    <p>One lock, two Conditions. Because producers only wait on <code>notFull</code> and consumers only on <code>notEmpty</code>, a single <code>signal()</code> always wakes the right kind of thread, so you don't need <code>signalAll()</code>. A circular array avoids allocating a node per element.</p>
+    <span class="lang java">Java</span>
+<pre><code>public final class BoundedBlockingQueue&lt;E&gt; {
+  private final Object[] items;
+  private int head, tail, count;              // guarded by lock
+  private final ReentrantLock lock = new ReentrantLock();
+  private final Condition notFull = lock.newCondition();
+  private final Condition notEmpty = lock.newCondition();
+
+  public BoundedBlockingQueue(int capacity) { items = new Object[capacity]; }
+
+  public void put(E e) throws InterruptedException {
+    lock.lockInterruptibly();
+    try {
+      while (count == items.length) notFull.await();
+      items[tail] = e;
+      tail = (tail + 1) % items.length;
+      count++;
+      notEmpty.signal();
+    } finally { lock.unlock(); }
+  }
+
+  public E take() throws InterruptedException {
+    lock.lockInterruptibly();
+    try {
+      while (count == 0) notEmpty.await();
+      return dequeue();
+    } finally { lock.unlock(); }
+  }
+
+  public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+    long nanos = unit.toNanos(timeout);
+    lock.lockInterruptibly();
+    try {
+      while (count == 0) {
+        if (nanos &lt;= 0) return null;
+        nanos = notEmpty.awaitNanos(nanos);   // returns time left
+      }
+      return dequeue();
+    } finally { lock.unlock(); }
+  }
+
+  public int size() {
+    lock.lock();
+    try { return count; } finally { lock.unlock(); }
+  }
+
+  @SuppressWarnings("unchecked")
+  private E dequeue() {
+    E e = (E) items[head];
+    items[head] = null;                       // let GC reclaim it
+    head = (head + 1) % items.length;
+    count--;
+    notFull.signal();
+    return e;
+  }
+}</code></pre>
+    <span class="lang go">Go</span>
+<pre><code>// A buffered channel already is a bounded blocking queue.
+// The interview value is adding cancellation and timeouts.
+type Queue[T any] struct{ ch chan T }
+
+func NewQueue[T any](n int) *Queue[T] { return &amp;Queue[T]{ch: make(chan T, n)} }
+
+func (q *Queue[T]) Put(ctx context.Context, v T) error {
+  select {
+  case q.ch &lt;- v:
+    return nil
+  case &lt;-ctx.Done():
+    return ctx.Err()
+  }
+}
+
+func (q *Queue[T]) Take(ctx context.Context) (T, error) {
+  select {
+  case v := &lt;-q.ch:
+    return v, nil
+  case &lt;-ctx.Done():
+    var zero T
+    return zero, ctx.Err()
+  }
+}</code></pre>
+    <p class="muted">Follow-ups to expect: why <code>size()</code> needs the lock (visibility), how <code>LinkedBlockingQueue</code> uses two locks so put and take don't contend, and what happens to blocked producers on shutdown.</p>
+  </div></details>
+  <span class="lbl eyebrow">Practice</span>
+  <ol class="practice">
+    <li><span class="lvl m">MED</span><div><b>Batching log writer.</b> Many threads call <code>log(line)</code>. One writer thread flushes to disk every 100 lines or every 50 ms, whichever comes first. No line is lost on shutdown. <details><summary>Hint</summary><p>Writer loops on <code>poll(deadline − now)</code>; <code>drainTo</code> grabs the rest of a batch cheaply. Shutdown uses a poison-pill entry.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Priority blocking queue with bounded capacity.</b> <code>take()</code> returns the highest priority item; producers block when the total is at capacity. <details><summary>Hint</summary><p>Same shape as the worked solution with a heap instead of the circular array.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Sleeping barber</b> with K waiting chairs and customers who leave if every chair is taken. <details><summary>Hint</summary><p>A semaphore for customers waiting, one for the barber being ready, and a mutex-protected free-chairs count.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Two-lock queue.</b> Rewrite the worked solution with separate put and take locks and an <code>AtomicInteger count</code>, like <code>LinkedBlockingQueue</code>. <details><summary>Hint</summary><p>A putter that makes the queue go from empty to non-empty must take the take-lock briefly to signal notEmpty.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- C -->
+<section class="qtype" id="qa-c">
+  <div class="qhead"><span class="tag">Type C</span><h3>Rate and resource limiting</h3></div>
+  <div class="prompt"><span class="lbl">Worked problem</span><p><b>Per-client token bucket.</b> <code>allow(clientId)</code> returns true if the client is under its limit: bursts up to <code>capacity</code>, refilling at <code>ratePerSec</code>. Thousands of clients, many threads, no background refill thread.</p></div>
+  <details class="sol"><summary>Show solution</summary><div class="inner">
+    <p>Refill lazily: on each call, add <code>elapsed × rate</code> tokens (capped at capacity), then try to spend one. Each bucket has its own lock, so different clients never contend. <code>computeIfAbsent</code> creates each bucket exactly once.</p>
+    <span class="lang java">Java</span>
+<pre><code>public final class RateLimiter {
+  private final ConcurrentHashMap&lt;String, Bucket&gt; buckets = new ConcurrentHashMap&lt;&gt;();
+  private final long capacity;
+  private final double ratePerNano;
+
+  public RateLimiter(long capacity, double ratePerSec) {
+    this.capacity = capacity;
+    this.ratePerNano = ratePerSec / 1_000_000_000.0;
+  }
+
+  public boolean allow(String clientId) {
+    return buckets.computeIfAbsent(clientId, k -&gt; new Bucket()).tryAcquire();
+  }
+
+  private final class Bucket {
+    private double tokens = capacity;         // guarded by this
+    private long last = System.nanoTime();    // monotonic, not wall clock
+
+    synchronized boolean tryAcquire() {
+      long now = System.nanoTime();
+      tokens = Math.min(capacity, tokens + (now - last) * ratePerNano);
+      last = now;
+      if (tokens &gt;= 1) { tokens -= 1; return true; }
+      return false;
+    }
+  }
+}</code></pre>
+    <span class="lang go">Go</span>
+<pre><code>type bucket struct {
+  mu     sync.Mutex
+  tokens float64
+  last   time.Time
+}
+
+type Limiter struct {
+  buckets  sync.Map // clientID -&gt; *bucket
+  capacity float64
+  rate     float64 // tokens per second
+}
+
+func (l *Limiter) Allow(id string) bool {
+  v, _ := l.buckets.LoadOrStore(id, &amp;bucket{tokens: l.capacity, last: time.Now()})
+  b := v.(*bucket)
+  b.mu.Lock()
+  defer b.mu.Unlock()
+  now := time.Now() // carries a monotonic reading
+  b.tokens = min(l.capacity, b.tokens+now.Sub(b.last).Seconds()*l.rate)
+  b.last = now
+  if b.tokens &gt;= 1 {
+    b.tokens--
+    return true
+  }
+  return false
+}</code></pre>
+    <p class="muted">Talking points: <code>nanoTime</code> vs <code>currentTimeMillis</code> (clock jumps), evicting idle clients (a periodic sweep, or Caffeine with expireAfterAccess), a lock-free version with CAS on a packed long, and how this changes when the limit is shared across many servers (Redis + Lua script).</p>
+  </div></details>
+  <span class="lbl eyebrow">Practice</span>
+  <ol class="practice">
+    <li><span class="lvl e">EASY</span><div><b>Logger rate limiter (LC 359)</b>, made thread-safe without one global lock. <details><summary>Hint</summary><p><code>ConcurrentHashMap.compute</code> gives you an atomic read-modify-write per key.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Sliding-window log limiter</b>: at most N requests in any 60-second window per client, with bounded memory. <details><summary>Hint</summary><p>A deque of timestamps per client; evict from the head on each call. Compare memory with a sliding-window counter.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Blocking <code>acquire()</code></b> that waits for the next token instead of rejecting, and serves callers in arrival order. <details><summary>Hint</summary><p>Reserve a future token and sleep until its time, like Guava's <code>RateLimiter</code>. Fairness falls out of reserving in order.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Adaptive concurrency limiter.</b> At most K in-flight calls to a downstream; lower K when latency rises, raise it when latency is healthy. <details><summary>Hint</summary><p>A resizable semaphore (track permits yourself under a lock) and an AIMD rule: add 1 on success, halve on timeout.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- D -->
+<section class="qtype" id="qa-d">
+  <div class="qhead"><span class="tag">Type D</span><h3>Build a primitive</h3></div>
+  <div class="prompt"><span class="lbl">Worked problem</span><p><b>Writer-preferring read-write lock.</b> Many readers may hold it at once; a writer holds it alone. Once a writer is waiting, new readers must wait so writers are not starved.</p></div>
+  <details class="sol"><summary>Show solution</summary><div class="inner">
+    <p>Three fields under one monitor: active readers, whether a writer is active, and how many writers are waiting. Readers wait while a writer is active <i>or waiting</i>. The subtle bug to avoid: if a waiting writer is interrupted, readers blocked on <code>waitingWriters &gt; 0</code> must be woken, or they wait forever.</p>
+    <span class="lang java">Java</span>
+<pre><code>public final class WriterPreferringRWLock {
+  private int readers;            // all guarded by this
+  private int waitingWriters;
+  private boolean writing;
+
+  public synchronized void lockRead() throws InterruptedException {
+    while (writing || waitingWriters &gt; 0) wait();
+    readers++;
+  }
+
+  public synchronized void unlockRead() {
+    if (readers &lt;= 0) throw new IllegalMonitorStateException();
+    if (--readers == 0) notifyAll();          // a writer may be waiting
+  }
+
+  public synchronized void lockWrite() throws InterruptedException {
+    waitingWriters++;
+    try {
+      while (writing || readers &gt; 0) wait();
+    } catch (InterruptedException e) {
+      waitingWriters--;
+      notifyAll();                            // unblock readers we were holding back
+      throw e;
+    }
+    waitingWriters--;
+    writing = true;
+  }
+
+  public synchronized void unlockWrite() {
+    if (!writing) throw new IllegalMonitorStateException();
+    writing = false;
+    notifyAll();
+  }
+}</code></pre>
+    <span class="lang go">Go</span>
+<pre><code>type RWLock struct {
+  mu             sync.Mutex
+  cond           *sync.Cond
+  readers        int
+  waitingWriters int
+  writing        bool
+}
+
+func NewRWLock() *RWLock {
+  l := &amp;RWLock{}
+  l.cond = sync.NewCond(&amp;l.mu)
+  return l
+}
+
+func (l *RWLock) RLock() {
+  l.mu.Lock()
+  for l.writing || l.waitingWriters &gt; 0 {
+    l.cond.Wait()
+  }
+  l.readers++
+  l.mu.Unlock()
+}
+
+func (l *RWLock) RUnlock() {
+  l.mu.Lock()
+  l.readers--
+  if l.readers == 0 {
+    l.cond.Broadcast()
+  }
+  l.mu.Unlock()
+}
+
+func (l *RWLock) Lock() {
+  l.mu.Lock()
+  l.waitingWriters++
+  for l.writing || l.readers &gt; 0 {
+    l.cond.Wait()
+  }
+  l.waitingWriters--
+  l.writing = true
+  l.mu.Unlock()
+}
+
+func (l *RWLock) Unlock() {
+  l.mu.Lock()
+  l.writing = false
+  l.cond.Broadcast()
+  l.mu.Unlock()
+}</code></pre>
+    <p class="muted">The trade-off to state: this can now starve readers under a steady stream of writers. A fair alternative hands the lock over in phases (all waiting readers, then one writer). <code>notifyAll</code> is needed because readers and writers share one wait set.</p>
+  </div></details>
+  <span class="lbl eyebrow">Practice</span>
+  <ol class="practice">
+    <li><span class="lvl e">EASY</span><div><b>CountDownLatch</b> with <code>countDown</code>, <code>await</code>, <code>await(timeout)</code>. <details><summary>Hint</summary><p>A count and one monitor. notifyAll when it reaches zero; never let it go negative.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Counting Semaphore</b> with <code>acquire(n)</code>, <code>release(n)</code>, and a fair mode. <details><summary>Hint</summary><p>Fair mode needs a FIFO queue of waiters; a waiter proceeds only when it is at the head and enough permits exist.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Reusable CyclicBarrier</b> with a barrier action and correct behaviour when one party is interrupted. <details><summary>Hint</summary><p>A generation object. Waiters compare their generation to the current one so a new round can't release old waiters; interruption breaks the generation for everyone.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Your own Future</b> with <code>get</code>, <code>get(timeout)</code>, <code>cancel</code>, and <code>thenRun(callback)</code> that runs exactly once, even if registered after completion. <details><summary>Hint</summary><p>State machine (PENDING → DONE/FAILED/CANCELLED) with a CAS; callbacks stored in a list swapped out atomically on completion.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- E -->
+<section class="qtype" id="qa-e">
+  <div class="qhead"><span class="tag">Type E</span><h3>Scheduling and time</h3></div>
+  <div class="prompt"><span class="lbl">Worked problem</span><p><b>Delayed task scheduler.</b> <code>schedule(task, delay)</code> runs the task after the delay on a worker pool. Scheduling a task that is due earlier than everything else must still fire on time. No busy-waiting.</p></div>
+  <details class="sol"><summary>Show solution</summary><div class="inner">
+    <p>One dispatcher thread sleeps on a Condition until the earliest job is due. <code>awaitNanos</code> can be woken early, so when a new job becomes the head of the heap, <code>schedule</code> signals the dispatcher to re-plan its sleep. User code runs on the worker pool, never on the dispatcher, so a slow task can't delay other tasks.</p>
+    <span class="lang java">Java</span>
+<pre><code>public final class DelayScheduler implements AutoCloseable {
+  private record Job(long runAt, long seq, Runnable task) {}
+
+  private final PriorityQueue&lt;Job&gt; heap = new PriorityQueue&lt;&gt;(
+      Comparator.comparingLong(Job::runAt).thenComparingLong(Job::seq));
+  private final ReentrantLock lock = new ReentrantLock();
+  private final Condition changed = lock.newCondition();
+  private final ExecutorService workers;
+  private final Thread dispatcher;
+  private long seq;                 // guarded by lock; keeps FIFO for equal times
+  private boolean closed;           // guarded by lock
+
+  public DelayScheduler(int nWorkers) {
+    workers = Executors.newFixedThreadPool(nWorkers);
+    dispatcher = new Thread(this::dispatch, "scheduler-dispatch");
+    dispatcher.start();
+  }
+
+  public void schedule(Runnable task, long delay, TimeUnit unit) {
+    lock.lock();
+    try {
+      if (closed) throw new RejectedExecutionException("closed");
+      Job job = new Job(System.nanoTime() + unit.toNanos(delay), seq++, task);
+      heap.add(job);
+      if (heap.peek() == job) changed.signal(); // new earliest job
+    } finally { lock.unlock(); }
+  }
+
+  private void dispatch() {
+    lock.lock();
+    try {
+      while (!closed) {
+        Job head = heap.peek();
+        if (head == null) { changed.await(); continue; }
+        long wait = head.runAt() - System.nanoTime();
+        if (wait &gt; 0) { changed.awaitNanos(wait); continue; }
+        heap.poll();
+        workers.execute(head.task());
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } finally { lock.unlock(); }
+  }
+
+  @Override public void close() {
+    lock.lock();
+    try { closed = true; changed.signal(); } finally { lock.unlock(); }
+    workers.shutdown();
+  }
+}</code></pre>
+    <span class="lang go">Go</span>
+<pre><code>type job struct {
+  at  time.Time
+  seq int64
+  fn  func()
+}
+type jobHeap []job
+
+func (h jobHeap) Len() int { return len(h) }
+func (h jobHeap) Less(i, j int) bool {
+  if h[i].at.Equal(h[j].at) {
+    return h[i].seq &lt; h[j].seq
+  }
+  return h[i].at.Before(h[j].at)
+}
+func (h jobHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+func (h *jobHeap) Push(x any)   { *h = append(*h, x.(job)) }
+func (h *jobHeap) Pop() any {
+  old := *h
+  j := old[len(old)-1]
+  *h = old[:len(old)-1]
+  return j
+}
+
+type Scheduler struct {
+  add  chan job
+  quit chan struct{}
+}
+
+func NewScheduler() *Scheduler {
+  s := &amp;Scheduler{add: make(chan job), quit: make(chan struct{})}
+  go s.loop()
+  return s
+}
+
+func (s *Scheduler) Schedule(fn func(), d time.Duration) {
+  select {
+  case s.add &lt;- job{at: time.Now().Add(d), fn: fn}:
+  case &lt;-s.quit:
+  }
+}
+
+func (s *Scheduler) Close() { close(s.quit) }
+
+// One goroutine owns the heap, so no mutex is needed.
+func (s *Scheduler) loop() {
+  var h jobHeap
+  var seq int64
+  timer := time.NewTimer(time.Hour)
+  for {
+    if h.Len() &gt; 0 {
+      timer.Reset(time.Until(h[0].at)) // Go 1.23+: Reset is safe without draining
+    }
+    select {
+    case j := &lt;-s.add:
+      j.seq = seq
+      seq++
+      heap.Push(&amp;h, j)
+    case &lt;-timer.C:
+      for h.Len() &gt; 0 &amp;&amp; !h[0].at.After(time.Now()) {
+        go heap.Pop(&amp;h).(job).fn() // hand off; never run user code here
+      }
+    case &lt;-s.quit:
+      timer.Stop()
+      return
+    }
+  }
+}</code></pre>
+    <p class="muted">Follow-ups: cancel (return a handle with a cancelled flag, check it before running), fixed-rate vs fixed-delay repeats (compute next time from the scheduled time to avoid drift), and bounding the Go hand-off with a worker pool instead of <code>go</code>.</p>
+  </div></details>
+  <span class="lbl eyebrow">Practice</span>
+  <ol class="practice">
+    <li><span class="lvl m">MED</span><div><b>Debouncer.</b> <code>call()</code> runs the action only after 200 ms with no further calls. Thread-safe. <details><summary>Hint</summary><p>Keep a ScheduledFuture; each call cancels the previous one and schedules a new one, under a lock.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Cancellable timers.</b> Add <code>cancel(handle)</code> to the worked solution in O(log n). <details><summary>Hint</summary><p>Lazy deletion (a cancelled flag checked on pop) is O(1) and usually the expected answer. Mention that it leaks memory when many timers are cancelled.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Hierarchical timing wheel</b> for a million timeouts (like Kafka's purgatory). <details><summary>Hint</summary><p>Array of buckets indexed by tick; overflow goes to a coarser wheel. Insert and cancel are O(1).</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Job scheduler with a dependency DAG</b> and max parallelism K; failure cancels all descendants. <details><summary>Hint</summary><p>In-degree counts in an <code>AtomicInteger</code> per node. A job's completion decrements its children and submits any that reach zero.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- F -->
+<section class="qtype" id="qa-f">
+  <div class="qhead"><span class="tag">Type F</span><h3>Parallel work and termination</h3></div>
+  <div class="prompt"><span class="lbl">Worked problem</span><p><b>Multithreaded web crawler (LC 1242).</b> Starting from a URL, crawl every page on the same host using a pool of threads. <code>getUrls(url)</code> is a slow blocking call. Return every URL found. Don't sleep or poll to decide when you're done.</p></div>
+  <details class="sol"><summary>Show solution</summary><div class="inner">
+    <p>The hard part is termination: the frontier can be empty while a worker is about to discover new links. Keep a counter of <b>pending tasks</b>. Increment it <i>before</i> submitting a child, and decrement it when a task finishes. Because the child's increment happens before the parent's decrement, the counter can only reach zero when there is truly no work left. <code>Set.add</code> returning true is the atomic “claim this URL”.</p>
+    <span class="lang java">Java</span>
+<pre><code>class Solution {
+  private ExecutorService pool;
+  private Set&lt;String&gt; seen;
+  private AtomicInteger pending;
+  private CountDownLatch done;
+  private HtmlParser parser;
+  private String host;
+
+  public List&lt;String&gt; crawl(String startUrl, HtmlParser parser) {
+    this.parser = parser;
+    this.host = hostOf(startUrl);
+    this.pool = Executors.newFixedThreadPool(8);
+    this.seen = ConcurrentHashMap.newKeySet();
+    this.pending = new AtomicInteger();
+    this.done = new CountDownLatch(1);
+
+    seen.add(startUrl);
+    submit(startUrl);
+    try {
+      done.await();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } finally {
+      pool.shutdownNow();
+    }
+    return new ArrayList&lt;&gt;(seen);
+  }
+
+  private void submit(String url) {
+    pending.incrementAndGet();                // before the parent finishes
+    pool.execute(() -&gt; {
+      try {
+        for (String next : parser.getUrls(url)) {
+          if (hostOf(next).equals(host) &amp;&amp; seen.add(next)) submit(next);
+        }
+      } finally {
+        if (pending.decrementAndGet() == 0) done.countDown();
+      }
+    });
+  }
+
+  private static String hostOf(String url) {
+    return url.split("/")[2];                 // "http://host/path" -&gt; "host"
+  }
+}</code></pre>
+    <span class="lang go">Go</span>
+<pre><code>func Crawl(start string, getURLs func(string) []string, limit int) []string {
+  host := hostOf(start)
+  var mu sync.Mutex
+  seen := map[string]bool{start: true}
+  sem := make(chan struct{}, limit) // at most `limit` fetches at once
+  var wg sync.WaitGroup
+
+  var visit func(string)
+  visit = func(u string) {
+    defer wg.Done()
+    sem &lt;- struct{}{}
+    urls := getURLs(u)
+    &lt;-sem // release before spawning, so children can't deadlock on the semaphore
+    for _, next := range urls {
+      if hostOf(next) != host {
+        continue
+      }
+      mu.Lock()
+      isNew := !seen[next]
+      seen[next] = true
+      mu.Unlock()
+      if isNew {
+        wg.Add(1) // Add before go, same rule as the Java increment
+        go visit(next)
+      }
+    }
+  }
+
+  wg.Add(1)
+  go visit(start)
+  wg.Wait()
+
+  out := make([]string, 0, len(seen))
+  for u := range seen {
+    out = append(out, u)
+  }
+  return out
+}
+
+func hostOf(u string) string { return strings.Split(u, "/")[2] }</code></pre>
+    <p class="muted">Follow-ups: why a <code>Phaser</code> also works (register per task, arriveAndDeregister when done), depth limits, politeness delays per host, and what changes when the crawl is distributed across machines.</p>
+  </div></details>
+  <span class="lbl eyebrow">Practice</span>
+  <ol class="practice">
+    <li><span class="lvl m">MED</span><div><b>Directory size.</b> Compute the total size of a directory tree in parallel. <details><summary>Hint</summary><p>A natural <code>RecursiveTask&lt;Long&gt;</code>: fork children, join and sum. In Go, the same pending-counter idea as the crawler, or <code>errgroup</code>.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Parallel word count</b> over 10,000 files with a fixed memory budget and a final merge. <details><summary>Hint</summary><p>Each worker keeps a local map and merges once at the end. This avoids contention on a shared map.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>First match wins.</b> Search many files for a string; return the first file that matches and cancel everything else. <details><summary>Hint</summary><p><code>CompletableFuture.anyOf</code>, or <code>invokeAny</code>. Workers must check the interrupt flag between chunks. In Go, cancel a shared context.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Parallel BFS</b> on a huge graph level by level, with a barrier between levels. <details><summary>Hint</summary><p>A <code>Phaser</code> with one party per worker; the next frontier is a concurrent set swapped in the phase's onAdvance.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- G -->
+<section class="qtype" id="qa-g">
+  <div class="qhead"><span class="tag">Type G</span><h3>Concurrent caches and maps</h3></div>
+  <div class="prompt"><span class="lbl">Worked problem</span><p><b>Load-once cache.</b> <code>get(key)</code> returns a cached value or loads it with an expensive <code>loader</code>. If 100 threads miss on the same key at the same moment, the loader must run exactly once and all 100 get its result. Loads for different keys must not block each other.</p></div>
+  <details class="sol"><summary>Show solution</summary><div class="inner">
+    <p>Cache the <b>future</b>, not the value. The first thread to <code>putIfAbsent</code> its future owns the load. Everyone else finds that future and waits on it. On failure, remove the future so the next caller can retry. This is the Memoizer from <i>Java Concurrency in Practice</i> §5.6.</p>
+    <span class="lang java">Java</span>
+<pre><code>public final class LoadingCache&lt;K, V&gt; {
+  private final ConcurrentHashMap&lt;K, CompletableFuture&lt;V&gt;&gt; map = new ConcurrentHashMap&lt;&gt;();
+  private final Function&lt;K, V&gt; loader;
+
+  public LoadingCache(Function&lt;K, V&gt; loader) { this.loader = loader; }
+
+  public V get(K key) throws InterruptedException, ExecutionException {
+    CompletableFuture&lt;V&gt; f = map.get(key);
+    if (f == null) {
+      CompletableFuture&lt;V&gt; mine = new CompletableFuture&lt;&gt;();
+      f = map.putIfAbsent(key, mine);
+      if (f == null) {                        // we won: run the load
+        f = mine;
+        try {
+          mine.complete(loader.apply(key));
+        } catch (Throwable t) {
+          map.remove(key, mine);              // allow a retry
+          mine.completeExceptionally(t);
+        }
+      }
+    }
+    return f.get();
+  }
+}</code></pre>
+    <span class="lang go">Go</span>
+<pre><code>type call[V any] struct {
+  done chan struct{} // closed when val/err are set
+  val  V
+  err  error
+}
+
+type LoadingCache[K comparable, V any] struct {
+  mu     sync.Mutex
+  m      map[K]*call[V]
+  loader func(K) (V, error)
+}
+
+func NewLoadingCache[K comparable, V any](loader func(K) (V, error)) *LoadingCache[K, V] {
+  return &amp;LoadingCache[K, V]{m: make(map[K]*call[V]), loader: loader}
+}
+
+func (c *LoadingCache[K, V]) Get(k K) (V, error) {
+  c.mu.Lock()
+  if cl, ok := c.m[k]; ok {
+    c.mu.Unlock()
+    &lt;-cl.done
+    return cl.val, cl.err
+  }
+  cl := &amp;call[V]{done: make(chan struct{})}
+  c.m[k] = cl
+  c.mu.Unlock() // never hold the lock while loading
+
+  cl.val, cl.err = c.loader(k)
+  if cl.err != nil {
+    c.mu.Lock()
+    delete(c.m, k)
+    c.mu.Unlock()
+  }
+  close(cl.done) // publishes val/err to waiters (happens-before)
+  return cl.val, cl.err
+}</code></pre>
+    <p class="muted">Why not <code>map.computeIfAbsent(key, loader)</code>? It works, but it holds a lock on the hash bin while the loader runs. That blocks other keys in the same bin, and a loader that touches the same map can deadlock or throw. Add TTL and size bounds as follow-ups.</p>
+  </div></details>
+  <span class="lbl eyebrow">Practice</span>
+  <ol class="practice">
+    <li><span class="lvl m">MED</span><div><b>Thread-safe LRU cache (LC 146)</b> with a TTL per entry. <details><summary>Hint</summary><p>Start with one lock around a <code>LinkedHashMap(accessOrder = true)</code>. Then discuss striping and why LRU order is hard to shard.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div><b>Hit counter (LC 362)</b> at 100k QPS: hits in the last 300 seconds. <details><summary>Hint</summary><p>A ring of 300 buckets, each holding (second, count). Use an <code>AtomicLongArray</code> or per-bucket locks; reset a bucket lazily when its second is stale.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>KV store with snapshots.</b> <code>snapshot()</code> returns a consistent read-only view while writes continue. <details><summary>Hint</summary><p>Multi-version values: each write gets a version from an AtomicLong; a snapshot records the current version and reads the newest value at or below it.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div><b>Popularity tracker.</b> <code>increment(id)</code>, <code>decrement(id)</code>, <code>mostPopular()</code> in O(1), thread-safe. <details><summary>Hint</summary><p>The LFU-style bucket list keyed by count. One lock is fine; say why fine-grained locking is hard when an item moves between buckets.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- H -->
+<section class="qtype" id="qa-h">
+  <div class="qhead"><span class="tag">Type H</span><h3>Spot the bug</h3></div>
+  <p>Interviewers paste a snippet and ask what's wrong. Find the bug before you open each answer.</p>
+
+  <div class="bug">
+    <span class="lang java">1 · Java</span>
+<pre><code>ConcurrentHashMap&lt;String, Integer&gt; counts = new ConcurrentHashMap&lt;&gt;();
+void record(String k) {
+  Integer c = counts.get(k);
+  counts.put(k, c == null ? 1 : c + 1);
+}</code></pre>
+    <details class="sol"><summary>Show answer</summary><div class="inner"><p>Check-then-act. Each call is thread-safe on its own, but the get-then-put pair is not atomic, so concurrent increments are lost. Fix: <code>counts.merge(k, 1, Integer::sum)</code>. Under heavy contention, use <code>ConcurrentHashMap&lt;String, LongAdder&gt;</code> with <code>computeIfAbsent(k, x -&gt; new LongAdder()).increment()</code>.</p></div></details>
+  </div>
+
+  <div class="bug">
+    <span class="lang java">2 · Java</span>
+<pre><code>private Integer count = 0;
+void inc() {
+  synchronized (count) { count++; }
+}</code></pre>
+    <details class="sol"><summary>Show answer</summary><div class="inner"><p><code>count++</code> on a boxed Integer assigns a <i>new</i> object, so threads lock different monitors and there is no mutual exclusion. Small Integers are also cached and shared JVM-wide, so unrelated code can lock the same object. Always lock on a <code>private final Object</code>.</p></div></details>
+  </div>
+
+  <div class="bug">
+    <span class="lang java">3 · Java</span>
+<pre><code>synchronized void await() throws InterruptedException {
+  if (!ready) wait();
+  use(data);
+}</code></pre>
+    <details class="sol"><summary>Show answer</summary><div class="inner"><p><code>if</code> instead of <code>while</code>. <code>wait()</code> can return spuriously, or another thread can change the state between the notify and this thread getting the lock back. Always re-check the condition in a loop.</p></div></details>
+  </div>
+
+  <div class="bug">
+    <span class="lang java">4 · Java</span>
+<pre><code>ExecutorService pool = Executors.newFixedThreadPool(4);
+Future&lt;Report&gt; build(Order o) {
+  return pool.submit(() -&gt; {
+    Future&lt;Price&gt; p = pool.submit(() -&gt; price(o));
+    Future&lt;Stock&gt; s = pool.submit(() -&gt; stock(o));
+    return new Report(p.get(), s.get());
+  });
+}</code></pre>
+    <details class="sol"><summary>Show answer</summary><div class="inner"><p>Pool-induced deadlock. Under load, 4 outer tasks occupy all 4 workers and block on <code>get()</code>; the subtasks sit in the queue with no one to run them. Fix: a separate pool for subtasks, <code>CompletableFuture</code> composition with no blocking <code>get()</code> inside a worker, or ForkJoin, which lets a joining thread run other tasks.</p></div></details>
+  </div>
+
+  <div class="bug">
+    <span class="lang go">5 · Go</span>
+<pre><code>var wg sync.WaitGroup
+for _, u := range urls {
+  go func() {
+    wg.Add(1)
+    defer wg.Done()
+    fetch(u)
+  }()
+}
+wg.Wait()</code></pre>
+    <details class="sol"><summary>Show answer</summary><div class="inner"><p><code>wg.Add(1)</code> is inside the goroutine, so <code>Wait()</code> can run before any goroutine has called Add and return immediately. Call <code>wg.Add(1)</code> before the <code>go</code> statement (or <code>wg.Add(len(urls))</code> once). Before Go 1.22 the loop variable <code>u</code> was also shared across iterations.</p></div></details>
+  </div>
+
+  <div class="bug">
+    <span class="lang go">6 · Go</span>
+<pre><code>func fetchWithTimeout() (string, error) {
+  ch := make(chan string)
+  go func() { ch &lt;- slowCall() }()
+  select {
+  case v := &lt;-ch:
+    return v, nil
+  case &lt;-time.After(time.Second):
+    return "", ErrTimeout
+  }
+}</code></pre>
+    <details class="sol"><summary>Show answer</summary><div class="inner"><p>Goroutine leak. After a timeout nobody reads from <code>ch</code>, so the goroutine blocks on its send forever. Under steady timeouts this leaks thousands of goroutines. Fix: <code>make(chan string, 1)</code> so the send always completes, and ideally pass a <code>context</code> into <code>slowCall</code> so it stops working too.</p></div></details>
+  </div>
+
+  <span class="lbl eyebrow">Practice (production debugging)</span>
+  <ol class="practice">
+    <li><span class="lvl m">MED</span><div>p99 latency jumped and a thread dump shows 180 of 200 threads <code>BLOCKED</code> on the same monitor. Walk through what you do next. <details><summary>Hint</summary><p>Find the owner thread in the dump and what it is doing (often I/O under a lock). Fixes: shrink the critical section, move I/O outside it, or stripe the lock.</p></details></div></li>
+    <li><span class="lvl m">MED</span><div>A Go service's memory grows slowly and never drops. The goroutine count in pprof grows with traffic. <details><summary>Hint</summary><p><code>/debug/pprof/goroutine?debug=2</code>, group by stack. Look for goroutines stuck on channel sends or receives with no context.</p></details></div></li>
+    <li><span class="lvl h">HARD</span><div>A job runs fine with 4 threads and hangs with 16. There are no exceptions and CPU usage is 0%. <details><summary>Hint</summary><p>0% CPU with a hang means a deadlock or starvation, not a hot loop. Check <code>jstack</code> for “Found one Java-level deadlock”, then check for a bounded resource (like a DB pool of 10) that 16 threads each need two of.</p></details></div></li>
+  </ol>
+</section>
+
+<!-- ============ EVALUATION ============ -->
+<section id="eval" class="stack">
+  <span class="eyebrow">Getting evaluated</span>
+  <h2>How to submit your code for review</h2>
+  <p>Keep everything in one repo so I can read it directly from your machine:</p>
+<pre><code>concurrency-prep/
+├── java/    (Gradle or Maven, JUnit 5, JMH)
+│   └── src/main/java/prep/m03/MyExecutorService.java
+│   └── src/test/java/prep/m03/MyExecutorServiceTest.java
+├── go/      (one module, a package per exercise)
+│   └── m03pool/pool.go, pool_test.go
+└── NOTES.md (one paragraph per task: design, trade-offs, what broke)</code></pre>
+  <p>Then open a Claude Code session in that folder and ask something like <code>Evaluate module 3 Java and Go</code>. I'll read the code, run the tests and race detector, try to break it with extra interleavings, and score it with the rubric below, the way a senior interviewer would.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Dimension</th><th>What a strong answer shows</th><th>Weight</th></tr></thead>
+    <tbody>
+      <tr><td>Correctness</td><td>No races, no lost updates, invariants hold under stress tests</td><td>30%</td></tr>
+      <tr><td>Liveness</td><td>No deadlock, livelock or starvation; timeouts and interrupts are honoured</td><td>20%</td></tr>
+      <tr><td>Lifecycle</td><td>Clean shutdown, no leaked threads or goroutines, errors propagate to the caller</td><td>15%</td></tr>
+      <tr><td>Performance</td><td>Lock scope kept small, contention measured, right primitive chosen</td><td>15%</td></tr>
+      <tr><td>Tests</td><td>Tests that fail on a broken implementation, not only pass on a working one</td><td>10%</td></tr>
+      <tr><td>Communication</td><td>NOTES.md explains the invariants and why the locking is sufficient</td><td>10%</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ RAPID FIRE ============ -->
+<section id="qa" class="stack">
+  <span class="eyebrow">Rapid-fire</span>
+  <h2>Questions to answer out loud in under a minute</h2>
+  <div class="qa">
+    <div>Why does <code>maximumPoolSize</code> do nothing with an unbounded queue?</div>
+    <div>What's the difference between <code>submit()</code> and <code>execute()</code> when a task throws?</div>
+    <div>How does <code>shutdownNow()</code> stop a running task, and when does it fail to?</div>
+    <div>Why must <code>Condition.await()</code> be inside a <code>while</code> loop?</div>
+    <div>What does <code>volatile</code> guarantee, and why doesn't it make <code>count++</code> safe?</div>
+    <div>When would you use <code>CallerRunsPolicy</code>?</div>
+    <div>How does <code>ConcurrentHashMap</code> achieve lock-free reads?</div>
+    <div>What happens if you close a channel twice in Go? Send on a closed one? Receive?</div>
+    <div>Why is <code>parallelStream()</code> risky for blocking calls?</div>
+    <div>Virtual threads vs a platform thread pool: when does each win?</div>
+    <div>How do you detect and debug a deadlock in production? (<code>jstack</code>, thread dumps, <code>GODEBUG</code>, pprof goroutine profile)</div>
+    <div>How does Go's scheduler handle a goroutine that makes a blocking syscall?</div>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  var KEY = "cc-playbook-done";
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.task input[type="checkbox"]'));
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
+  function paint() {
+    var done = 0;
+    boxes.forEach(function (b) {
+      b.closest('.task').classList.toggle('done', b.checked);
+      if (b.checked) done++;
+    });
+    document.getElementById('count').textContent = done + " / " + boxes.length + " done";
+    document.getElementById('bar').style.width = (boxes.length ? (done / boxes.length * 100) : 0) + "%";
+  }
+  function save() {
+    var s = {};
+    boxes.forEach(function (b) { if (b.checked) s[b.id] = true; });
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!saved[b.id];
+    b.addEventListener('change', function () { save(); paint(); });
+  });
+  document.getElementById('reset').addEventListener('click', function () {
+    boxes.forEach(function (b) { b.checked = false; });
+    save(); paint();
+  });
+  paint();
+})();
+</script>
+</body>
+</html>
